@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kalkan Tehdit Paneli</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --panel: #ffffff; --ink: #16181d; --muted: #646b78; --line: #e2e5ea;
+    --accent: #2c5cdd; --ok: #1d8a4e; --ok-bg: #e6f5ec; --warn: #a86400; --warn-bg: #fdf1dc;
+    --bad: #c42b2b; --bad-bg: #fbe5e5; --chip: #eef1f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101216; --panel: #181b21; --ink: #e8eaee; --muted: #9aa2af; --line: #2a2f38;
+      --accent: #7c9cff; --ok: #4cc27f; --ok-bg: #16301f; --warn: #f0b04a; --warn-bg: #33270f;
+      --bad: #ff6b6b; --bad-bg: #3a1616; --chip: #232832;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 24px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .2px; }
+  header .alt { color: var(--muted); font-size: 13px; }
+  .durum { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+  .chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 12px; color: var(--muted); }
+  .chip.acik { color: var(--ok); }
+  main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 16px; } header { padding: 12px 16px; } }
+  .kart { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; min-width: 0; }
+  .kart h2 { font-size: 15px; margin: 0 0 12px; }
+  .sekmeler { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 14px; overflow-x: auto; }
+  .sekmeler button { background: none; border: 0; padding: 8px 14px; font: inherit; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+  .sekmeler button.aktif { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+  textarea, input[type=text], input[type=password] { width: 100%; font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+  textarea { min-height: 180px; resize: vertical; }
+  .ipucu { color: var(--muted); font-size: 13px; margin: 6px 0 12px; }
+  .satir { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  button.ana { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 9px 18px; font: inherit; font-weight: 600; cursor: pointer; }
+  button.ana:disabled { opacity: .55; cursor: progress; }
+  button.ikincil { background: var(--chip); color: var(--ink); border: 0; border-radius: 8px; padding: 7px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+  .birak { border: 2px dashed var(--line); border-radius: 10px; padding: 32px 16px; text-align: center; color: var(--muted); cursor: pointer; }
+  .birak.uzerinde { border-color: var(--accent); color: var(--accent); }
+  .gizli { display: none !important; }
+
+  .sonuc { margin-top: 18px; border-radius: 10px; padding: 16px; border: 1px solid var(--line); }
+  .sonuc.guvenli { background: var(--ok-bg); border-color: transparent; }
+  .sonuc.supheli { background: var(--warn-bg); border-color: transparent; }
+  .sonuc.tehlikeli { background: var(--bad-bg); border-color: transparent; }
+  .sonuc-ust { display: flex; align-items: center; gap: 14px; }
+  .puan { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  .guvenli .puan, .guvenli .seviye { color: var(--ok); }
+  .supheli .puan, .supheli .seviye { color: var(--warn); }
+  .tehlikeli .puan, .tehlikeli .seviye { color: var(--bad); }
+  .seviye { font-weight: 700; font-size: 16px; }
+  .sonuc ul { margin: 10px 0 0; padding-left: 18px; }
+  .sonuc li { margin: 3px 0; }
+  .agirlik { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .llm { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(127,127,127,.25); }
+  .llm h3, .alt-baslik { font-size: 13px; margin: 0 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .kucuk { font-size: 13px; color: var(--muted); word-break: break-all; }
+
+  .istat { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .istat div { background: var(--chip); border-radius: 10px; padding: 10px 12px; }
+  .istat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .istat span { font-size: 12px; color: var(--muted); }
+  .akis { display: flex; flex-direction: column; gap: 8px; max-height: 620px; overflow-y: auto; }
+  .olay { display: grid; grid-template-columns: 6px 1fr auto; gap: 10px; align-items: start; padding: 10px 12px 10px 0; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+  .olay .serit { align-self: stretch; border-radius: 10px 0 0 10px; }
+  .olay.guvenli .serit { background: var(--ok); }
+  .olay.supheli .serit { background: var(--warn); }
+  .olay.tehlikeli .serit { background: var(--bad); }
+  .olay.yeni { animation: parla 1.6s ease-out; }
+  @keyframes parla { from { box-shadow: 0 0 0 3px var(--accent); } to { box-shadow: 0 0 0 0 transparent; } }
+  .olay .baslik { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .olay .meta { font-size: 12px; color: var(--muted); }
+  .olay .p { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .bos { color: var(--muted); text-align: center; padding: 24px; }
+  .toast { position: fixed; right: 20px; bottom: 20px; max-width: 360px; background: var(--bad); color: #fff; padding: 12px 16px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.25); z-index: 10; }
+  .toast.supheli { background: var(--warn); }
+  @media (max-width: 480px) { .istat { grid-template-columns: repeat(2, 1fr); } .toast { left: 16px; right: 16px; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>🛡️ Kalkan</h1>
+    <div class="alt">Yapay zekâ destekli phishing, spam ve zararlı yazılım uyarı sistemi</div>
+  </div>
+  <div class="durum" id="durum"></div>
+</header>
+
+<main>
+  <section class="kart">
+    <div class="sekmeler" role="tablist">
+      <button class="aktif" data-sekme="eposta">E-posta</button>
+      <button data-sekme="sms">SMS / Mesaj</button>
+      <button data-sekme="url">Bağlantı</button>
+      <button data-sekme="dosya">Dosya / Virüs</button>
+    </div>
+
+    <div data-panel="eposta">
+      <textarea id="eposta" placeholder="E-postanın metnini ya da ham kaynağını (başlıklarla birlikte) yapıştırın"></textarea>
+      <div class="ipucu">Ham kaynak için Gmail'de ⋮ → "Orijinali göster", Outlook'ta "Kaynağı görüntüle". Başlıklarla birlikte verilirse SPF/DKIM, gönderen taklidi ve ekler de incelenir.</div>
+    </div>
+    <div data-panel="sms" class="gizli">
+      <textarea id="sms" placeholder="Şüpheli SMS ya da WhatsApp mesajını yapıştırın"></textarea>
+      <div class="ipucu">Kargo, banka, e-Devlet ve vergi iadesi taklitleri, ödül ve yatırım dolandırıcılığı aranır.</div>
+    </div>
+    <div data-panel="url" class="gizli">
+      <input type="text" id="url" placeholder="https://..." autocomplete="off">
+      <div class="ipucu">Bağlantı açılmaz; yalnızca adres incelenir (marka taklidi, benzer harf, kısaltıcı, IP adresi…).</div>
+    </div>
+    <div data-panel="dosya" class="gizli">
+      <label class="birak" id="birak">
+        <input type="file" id="dosya" class="gizli">
+        <div id="birakYazi">Dosyayı buraya sürükleyin ya da seçmek için tıklayın</div>
+      </label>
+      <div class="ipucu">Dosya çalıştırılmaz. Hash, gerçek dosya türü, çift uzantı, makro, PDF JavaScript ve şüpheli kod desenleri incelenir. ClamAV ve VirusTotal tanımlıysa onlara da sorulur.</div>
+    </div>
+
+    <div class="satir">
+      <button class="ana" id="tara">Tara</button>
+      <span class="kucuk" id="bilgi"></span>
+    </div>
+
+    <div id="sonuc"></div>
+  </section>
+
+  <section class="kart">
+    <div class="satir" style="justify-content:space-between;margin-bottom:12px">
+      <h2 style="margin:0">Canlı uyarılar</h2>
+      <div class="satir">
+        <label class="kucuk"><input type="checkbox" id="sadeceUyari" checked> Yalnızca uyarılar</label>
+        <button class="ikincil" id="bildirimIzni">Masaüstü bildirimi aç</button>
+      </div>
+    </div>
+    <div class="istat" id="istat"></div>
+    <div class="akis" id="akis"><div class="bos">Henüz kayıt yok</div></div>
+  </section>
+</main>
+
+<div id="tokenKutusu" class="gizli" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px">
+  <div class="kart" style="max-width:380px;width:100%">
+    <h2>Erişim anahtarı</h2>
+    <p class="kucuk">Bu sunucu erişim anahtarı istiyor (KALKAN_TOKEN). Anahtar yalnızca bu tarayıcıda saklanır.</p>
+    <input type="password" id="tokenGir" autocomplete="off">
+    <div class="satir" style="margin-top:12px"><button class="ana" id="tokenKaydet">Kaydet</button></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const SEVIYE = { guvenli: "Güvenli", supheli: "Şüpheli", tehlikeli: "Tehlikeli" };
+  const KATEGORI = { temiz: "Temiz", phishing: "Oltalama (phishing)", spam: "Spam", zararli: "Zararlı yazılım", supheli: "Şüpheli" };
+  const TUR = { eposta: "E-posta", sms: "SMS", url: "Bağlantı", dosya: "Dosya" };
+  const KAYNAK = { panel: "Panel", klasor: "Klasör izleme", imap: "Posta kutusu", api: "API" };
+
+  // Taranan içerik saldırgan kaynaklıdır: her metin kaçışlanarak basılır.
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const saat = (t) => new Date(t * 1000).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "medium" });
+
+  let token = "";
+  try { token = localStorage.getItem("kalkan_token") || ""; } catch (_) {}
+  let sekme = "eposta";
+  let secilenDosya = null;
+  let kayitlar = [];
+
+  async function api(yol, secenek = {}) {
+    const h = Object.assign({}, secenek.headers || {});
+    if (token) h["X-Kalkan-Token"] = token;
+    const r = await fetch(yol, Object.assign({}, secenek, { headers: h }));
+    if (r.status === 401) { tokenSor(); throw new Error("Erişim anahtarı gerekli"); }
+    if (!r.ok) {
+      let m = r.statusText;
+      try { const j = await r.json(); m = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail); } catch (_) {}
+      throw new Error(m);
+    }
+    return r.json();
+  }
+
+  function tokenSor() { $("#tokenKutusu").classList.remove("gizli"); $("#tokenGir").focus(); }
+  $("#tokenKaydet").onclick = () => {
+    token = $("#tokenGir").value.trim();
+    try { localStorage.setItem("kalkan_token", token); } catch (_) {}
+    $("#tokenKutusu").classList.add("gizli");
+    baslat();
+  };
+
+  // Sekmeler
+  document.querySelectorAll(".sekmeler button").forEach((b) => b.onclick = () => {
+    sekme = b.dataset.sekme;
+    document.querySelectorAll(".sekmeler button").forEach((x) => x.classList.toggle("aktif", x === b));
+    document.querySelectorAll("[data-panel]").forEach((p) => p.classList.toggle("gizli", p.dataset.panel !== sekme));
+    $("#sonuc").innerHTML = "";
+  });
+
+  // Dosya seçme / sürükle-bırak
+  const birak = $("#birak");
+  $("#dosya").onchange = (e) => dosyaSec(e.target.files[0]);
+  ["dragenter", "dragover"].forEach((t) => birak.addEventListener(t, (e) => { e.preventDefault(); birak.classList.add("uzerinde"); }));
+  ["dragleave", "drop"].forEach((t) => birak.addEventListener(t, (e) => { e.preventDefault(); birak.classList.remove("uzerinde"); }));
+  birak.addEventListener("drop", (e) => dosyaSec(e.dataTransfer.files[0]));
+  function dosyaSec(f) {
+    if (!f) return;
+    secilenDosya = f;
+    $("#birakYazi").textContent = `${f.name} · ${(f.size / 1024).toFixed(1)} KB`;
+  }
+
+  $("#url").addEventListener("keydown", (e) => { if (e.key === "Enter") tara(); });
+  $("#tara").onclick = tara;
+
+  async function tara() {
+    const btn = $("#tara");
+    $("#bilgi").textContent = "";
+    try {
+      let veri;
+      if (sekme === "eposta" || sekme === "sms") {
+        const icerik = $("#" + sekme).value;
+        if (!icerik.trim()) return ($("#bilgi").textContent = "Önce içerik yapıştırın.");
+        btn.disabled = true; $("#bilgi").textContent = "Taranıyor…";
+        veri = await api("/api/tara/metin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ icerik, tur: sekme }) });
+      } else if (sekme === "url") {
+        const url = $("#url").value.trim();
+        if (!url) return ($("#bilgi").textContent = "Önce bir bağlantı girin.");
+        btn.disabled = true; $("#bilgi").textContent = "Taranıyor…";
+        veri = await api("/api/tara/url", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+      } else {
+        if (!secilenDosya) return ($("#bilgi").textContent = "Önce bir dosya seçin.");
+        btn.disabled = true; $("#bilgi").textContent = "Taranıyor…";
+        const fd = new FormData(); fd.append("dosya", secilenDosya);
+        veri = await api("/api/tara/dosya", { method: "POST", body: fd });
+      }
+      $("#bilgi").textContent = "";
+      sonucGoster(veri);
+    } catch (e) {
+      $("#bilgi").textContent = "Hata: " + e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function sonucHtml(v) {
+    const bulgular = (v.bulgular || []).slice().sort((a, b) => b.agirlik - a.agirlik);
+    const liste = bulgular.length
+      ? `<ul>${bulgular.map((b) => `<li>${esc(b.aciklama)} <span class="agirlik">+${b.agirlik}${b.kritik ? " · kritik" : ""}</span></li>`).join("")}</ul>`
+      : `<p class="kucuk">Risk sinyali bulunmadı. Yine de beklemediğiniz bir istekte göndereni başka bir kanaldan doğrulayın.</p>`;
+    let ml = "";
+    if (v.ml) {
+      const o = v.ml.olasiliklar;
+      ml = `<p class="kucuk">ML modeli: ${Object.keys(o).map((k) => `${esc(KATEGORI[k] || k)} %${Math.round(o[k] * 100)}`).join(" · ")}</p>`;
+    }
+    let llm = "";
+    if (v.llm) {
+      if (v.llm.hata) llm = `<div class="llm"><h3>Yapay zekâ yorumu</h3><p class="kucuk">Alınamadı: ${esc(v.llm.hata)}</p></div>`;
+      else llm = `<div class="llm"><h3>Yapay zekâ yorumu · güven: ${esc(v.llm.guven)}</h3>
+        <p>${esc(v.llm.aciklama)}</p>
+        ${v.llm.oneriler?.length ? `<div class="alt-baslik">Ne yapmalı?</div><ul>${v.llm.oneriler.map((o) => `<li>${esc(o)}</li>`).join("")}</ul>` : ""}
+        ${v.ek?.llm_yukseltti ? `<p class="kucuk">Yapay zekâ değerlendirmesi risk seviyesini yükseltti.</p>` : ""}
+      </div>`;
+    }
+    const ek = v.ek || {};
+    let detay = "";
+    if (ek.sha256) detay += `<p class="kucuk">SHA-256: ${esc(ek.sha256)} · Gerçek tür: ${esc(ek.gercek_tur)} · ${(ek.boyut / 1024).toFixed(1)} KB</p>`;
+    if (ek.virustotal) detay += `<p class="kucuk">VirusTotal: ${esc(JSON.stringify(ek.virustotal))}</p>`;
+    if (ek.baglantilar?.length) detay += `<div class="alt-baslik" style="margin-top:10px">Bağlantılar</div><ul class="kucuk">${ek.baglantilar.map((b) => `<li>${esc(b.url)} · ${esc(SEVIYE[b.seviye])} (${b.puan})</li>`).join("")}</ul>`;
+    if (ek.ekler?.length) detay += `<div class="alt-baslik" style="margin-top:10px">Ekler</div><ul class="kucuk">${ek.ekler.map((b) => `<li>${esc(b.ad)} · ${esc(SEVIYE[b.seviye])} (${b.puan})</li>`).join("")}</ul>`;
+    return `<div class="sonuc ${esc(v.seviye)}">
+      <div class="sonuc-ust">
+        <div class="puan">${v.puan}</div>
+        <div><div class="seviye">${esc(SEVIYE[v.seviye])}${v.seviye !== "guvenli" ? " · " + esc(KATEGORI[v.kategori] || v.kategori) : ""}</div>
+        <div class="kucuk">${esc(TUR[v.tur] || v.tur)} · ${esc(v.hedef)}</div></div>
+      </div>
+      ${liste}${ml}${detay}${llm}
+    </div>`;
+  }
+  function sonucGoster(v) { $("#sonuc").innerHTML = sonucHtml(v); }
+
+  // Akış ve istatistik
+  function akisCiz() {
+    const sadece = $("#sadeceUyari").checked;
+    const liste = kayitlar.filter((k) => !sadece || k.seviye !== "guvenli");
+    if (!liste.length) { $("#akis").innerHTML = `<div class="bos">${sadece ? "Uyarı yok" : "Henüz kayıt yok"}</div>`; return; }
+    $("#akis").innerHTML = liste.slice(0, 200).map((k) => `
+      <div class="olay ${esc(k.seviye)}${k._yeni ? " yeni" : ""}" data-id="${k.id}">
+        <div class="serit"></div>
+        <div style="min-width:0">
+          <div class="baslik">${esc(k.hedef)}</div>
+          <div class="meta">${esc(SEVIYE[k.seviye])}${k.seviye !== "guvenli" ? " · " + esc(KATEGORI[k.kategori] || k.kategori) : ""} · ${esc(TUR[k.tur] || k.tur)} · ${esc(KAYNAK[k.kaynak] || k.kaynak)} · ${saat(k.zaman)}</div>
+        </div>
+        <div class="p">${k.puan}</div>
+      </div>`).join("");
+    kayitlar.forEach((k) => delete k._yeni);
+    document.querySelectorAll(".olay").forEach((el) => el.onclick = () => {
+      const k = kayitlar.find((x) => String(x.id) === el.dataset.id);
+      if (k) { sonucGoster(k); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    });
+  }
+  $("#sadeceUyari").onchange = akisCiz;
+
+  async function istatistikYukle() {
+    try {
+      const s = await api("/api/istatistik");
+      const sv = s.seviye || {};
+      $("#istat").innerHTML = `
+        <div><b>${s.toplam}</b><span>Toplam tarama</span></div>
+        <div><b style="color:var(--bad)">${sv.tehlikeli || 0}</b><span>Tehlikeli</span></div>
+        <div><b style="color:var(--warn)">${sv.supheli || 0}</b><span>Şüpheli</span></div>
+        <div><b style="color:var(--ok)">${sv.guvenli || 0}</b><span>Güvenli</span></div>`;
+    } catch (_) {}
+  }
+
+  function toast(k) {
+    const t = document.createElement("div");
+    t.className = "toast " + k.seviye;
+    t.innerHTML = `<b>${k.seviye === "tehlikeli" ? "🚨 Tehlikeli" : "⚠️ Şüpheli"} ${esc(KATEGORI[k.kategori] || "")}</b><br><span style="font-size:13px">${esc(k.hedef)}</span>`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 6000);
+    if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+      new Notification(`Kalkan: ${SEVIYE[k.seviye]} ${KATEGORI[k.kategori] || ""}`, { body: `${TUR[k.tur] || k.tur} · ${k.hedef}` });
+    }
+  }
+
+  $("#bildirimIzni").onclick = async () => {
+    if (!("Notification" in window)) return alert("Bu tarayıcı masaüstü bildirimlerini desteklemiyor.");
+    const izin = await Notification.requestPermission();
+    $("#bildirimIzni").textContent = izin === "granted" ? "Bildirimler açık" : "Bildirim izni verilmedi";
+  };
+
+  let kaynak = null;
+  function akisBaglan() {
+    if (kaynak) kaynak.close();
+    kaynak = new EventSource("/api/olaylar" + (token ? "?token=" + encodeURIComponent(token) : ""));
+    kaynak.onmessage = (e) => {
+      const olay = JSON.parse(e.data);
+      if (olay.tip !== "tarama") return;
+      const k = olay.veri; k._yeni = true;
+      kayitlar.unshift(k);
+      akisCiz(); istatistikYukle();
+      if (k.seviye !== "guvenli" && k.kaynak !== "panel") toast(k);
+    };
+  }
+
+  async function durumYukle() {
+    const d = await api("/api/durum");
+    if (d.token_gerekli && !token) tokenSor();
+    const c = (ad, acik, ipucu) => `<span class="chip ${acik ? "acik" : ""}" title="${esc(ipucu)}">${acik ? "●" : "○"} ${esc(ad)}</span>`;
+    $("#durum").innerHTML = [
+      c("Kural + ML", true, "Her zaman açık"),
+      c("Yapay zekâ yorumu", d.llm, "KALKAN_LLM=1 ile açılır"),
+      c("VirusTotal", d.virustotal, "VIRUSTOTAL_API_KEY"),
+      c("Webhook", d.webhook, "KALKAN_WEBHOOK_URL"),
+      c("Klasör izleme", !!d.klasor_izleme, d.klasor_izleme || "KALKAN_WATCH_DIR"),
+      c("Posta izleme", d.imap_izleme, "KALKAN_IMAP_*"),
+    ].join("");
+    return d;
+  }
+
+  async function baslat() {
+    try {
+      const d = await durumYukle();
+      if (d.token_gerekli && !token) return;
+      kayitlar = await api("/api/gecmis?limit=200");
+      akisCiz(); istatistikYukle(); akisBaglan();
+    } catch (e) { $("#bilgi").textContent = "Sunucuya bağlanılamadı: " + e.message; }
+  }
+  baslat();
+})();
+</script>
+</body>
+</html>
