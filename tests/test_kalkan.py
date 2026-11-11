@@ -315,6 +315,100 @@ class SistemTaramaTest(unittest.TestCase):
         self.assertEqual(s.seviye, "guvenli")
 
 
+class UygulamaKaldirmaTest(unittest.TestCase):
+    """Sahte uygulama ve Library klasörleriyle; gerçek uygulamalara ve Çöp Kutusu'na dokunulmaz."""
+
+    def setUp(self):
+        import plistlib
+        import shutil
+        from pathlib import Path
+        from unittest import mock
+        from kalkan import config, karantina, uygulamalar
+        self.d = Path(tempfile.mkdtemp(prefix="kalkan-uyg-"))
+        self.apps, self.lib, self.cop = self.d / "Applications", self.d / "Library", self.d / "Cop"
+        for k in (self.apps, self.lib, self.cop):
+            k.mkdir()
+
+        def uygulama(ad, bid):
+            a = self.apps / f"{ad}.app" / "Contents"
+            (a / "MacOS").mkdir(parents=True)
+            plistlib.dump({"CFBundleIdentifier": bid, "CFBundleName": ad, "CFBundleShortVersionString": "1.0"},
+                          open(a / "Info.plist", "wb"))
+
+        uygulama("Notlarim", "com.ornek.notlarim")
+        uygulama("Safari", "com.apple.Safari")  # sistem uygulaması: listelenmemeli
+        uygulama("Google Drive", "com.google.drivefs")
+        for yol in ["Application Support/com.ornek.notlarim/veri.db", "Caches/com.ornek.notlarim/a",
+                    "Containers/com.ornek.notlarim/x", "Application Support/Notlarim/ayar.json",
+                    "Group Containers/ABCDE12345.com.ornek.notlarim/g", "Application Support/Google/paylasilan"]:
+            (self.lib / yol).parent.mkdir(parents=True, exist_ok=True)
+            (self.lib / yol).write_text("x")
+        (self.lib / "Preferences").mkdir()
+        (self.lib / "Preferences" / "com.ornek.notlarim.plist").write_text("p")
+        (self.lib / "LaunchAgents").mkdir()
+        (self.lib / "LaunchAgents" / "com.ornek.notlarim.helper.plist").write_text("l")
+
+        def sahte_cop(kaynak):
+            shutil.move(str(kaynak), str(self.cop / kaynak.name))
+            return "Çöp Kutusu"
+
+        self.yamalar = [
+            mock.patch.object(config, "UYGULAMA_DIZINLERI", [str(self.apps)]),
+            mock.patch.object(config, "KULLANICI_LIBRARY", str(self.lib)),
+            mock.patch.object(karantina, "cop_kutusuna", side_effect=sahte_cop),
+            mock.patch.object(uygulamalar, "_calisiyor_mu", return_value=False),
+        ]
+        for y in self.yamalar:
+            y.start()
+        self.u = uygulamalar
+
+    def tearDown(self):
+        for y in self.yamalar:
+            y.stop()
+
+    def _id(self, ad):
+        return next(a["id"] for a in self.u.listele()["uygulamalar"] if a["ad"] == ad)
+
+    def test_sistem_uygulamalari_listelenmez(self):
+        adlar = {a["ad"] for a in self.u.listele()["uygulamalar"]}
+        self.assertEqual(adlar, {"Notlarim", "Google Drive"})
+
+    def test_artiklar_bulunur_paylasilan_klasor_onerilmez(self):
+        d = self.u.artiklar(self._id("Notlarim"))
+        bulunan = {os.path.relpath(a["yol"], self.lib) for a in d["artiklar"]}
+        self.assertEqual(bulunan, {
+            "Application Support/com.ornek.notlarim", "Caches/com.ornek.notlarim", "Containers/com.ornek.notlarim",
+            "Preferences/com.ornek.notlarim.plist", "LaunchAgents/com.ornek.notlarim.helper.plist",
+            "Group Containers/ABCDE12345.com.ornek.notlarim", "Application Support/Notlarim"})
+        # "Google Drive" için ad eşleşmesi "Google Drive" klasörünü arar; ortak "Google" klasörü asla önerilmez
+        g = {os.path.relpath(a["yol"], self.lib) for a in self.u.artiklar(self._id("Google Drive"))["artiklar"]}
+        self.assertNotIn("Application Support/Google", g)
+
+    def test_kaldirma_uygulama_ve_secilen_artiklar(self):
+        kimlik = self._id("Notlarim")
+        d = self.u.artiklar(kimlik)
+        secilen = [a["yol"] for a in d["artiklar"] if "Caches" not in a["yol"]]
+        r = self.u.kaldir(kimlik, secilen)
+        self.assertFalse((self.apps / "Notlarim.app").exists())
+        self.assertTrue((self.cop / "Notlarim.app").exists())
+        self.assertEqual(len(r["artiklar"]), len(secilen))
+        self.assertTrue((self.lib / "Caches" / "com.ornek.notlarim").exists())  # seçilmeyen yerinde kalır
+        self.assertTrue((self.apps / "Safari.app").exists())
+
+    def test_listede_olmayan_yol_reddedilir(self):
+        kimlik = self._id("Notlarim")
+        with self.assertRaises(PermissionError):
+            self.u.kaldir(kimlik, [str(self.d / "Documents")])
+        self.assertTrue((self.apps / "Notlarim.app").exists())  # hiçbir şey taşınmadı
+
+    def test_acik_uygulama_kaldirilmaz(self):
+        from unittest import mock
+        with mock.patch.object(self.u, "_calisiyor_mu", return_value=True):
+            with self.assertRaises(RuntimeError):
+                self.u.kaldir(self._id("Notlarim"), [])
+        self.assertTrue((self.apps / "Notlarim.app").exists())
+
+
 class BaskaSiteKorumaTest(unittest.TestCase):
     def test_dis_siteden_gelen_degisiklik_istegi_reddedilir(self):
         from fastapi.testclient import TestClient

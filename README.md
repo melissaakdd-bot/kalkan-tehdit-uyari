@@ -17,6 +17,7 @@ Türkçe phishing için açık veri olmadığından ölçülemedi. Ayrıntılar 
 | Özellik | Açıklama |
 |---|---|
 | **Bilgisayar taraması** | Hızlı tarama (İndirilenler, Masaüstü, Belgeler, geçici klasörler, açılışta başlayan programlar), tam tarama (tüm kullanıcı klasörü) ya da seçilen klasör. Varsayılan olarak günde bir kez kendiliğinden hızlı tarama yapar. Tehlikeli dosyalar onayla karantinaya alınır ve geri yüklenebilir. |
+| **Uygulama kaldırma (macOS)** | Yüklü uygulamaları boyut, son kullanım ve güven durumuyla listeler. İmzasız, Gatekeeper'ın onaylamadığı ya da riskli adresten indirilmiş uygulamaları işaretler. Uygulamayı Library'de bıraktığı artıklarla birlikte Çöp Kutusu'na taşır. |
 | **Otomatik koruma (Chrome eklentisi)** | Açılan her sayfanın adresini ve şifre/kart formlarını tarar. Tehlikeli sayfada tam ekran uyarı ve sistem bildirimi, şüpheli sayfada sarı çubuk gösterir. İndirilen dosyaları da tarar. |
 | **E-posta / SMS** | Ham e-posta verilirse SPF/DKIM/DMARC, gönderen taklidi, Reply-To ve ekler de incelenir. |
 | **Bağlantı** | Marka ve yazım taklidi, benzer harf, kısaltıcı, IP adresi, ücretsiz barındırma servisleri. Alan adları ayrıca bir ML modeline sorulur. |
@@ -96,6 +97,22 @@ Panelde **Bilgisayar** bölümünden ya da komut satırından:
 - **macOS izinleri:** Çok sayıda konuma "erişilemedi" deniyorsa Sistem Ayarları → Gizlilik ve Güvenlik → Tam Disk Erişimi'nden Kalkan'ı başlattığınız uygulamaya (ör. Terminal) izin verebilirsiniz.
 
 Otomatik tarama aralığı `KALKAN_OTOMATIK_TARAMA_SAAT` ile değiştirilir (varsayılan 24, `0` kapatır). İlk kontrol sunucu açıldıktan 10 dakika sonra yapılır. Son taramadan bu yana süre dolmadıysa tarama yapılmaz.
+
+## Uygulama kaldırma (macOS)
+
+macOS'ta bir uygulamayı Çöp Kutusu'na sürüklemek yalnızca `.app` paketini siler. Ayarlar, önbellekler, kapsayıcılar ve açılışta başlayan yardımcı servisler `~/Library` altında kalır. Panelin **Uygulamalar** bölümü bunları da bulur.
+
+- **Liste:** `/Applications` ve `~/Applications` taranır. Her uygulama için boyut, son kullanım tarihi, imza durumu (App Store / doğrulanmış geliştirici / imzasız) ve Gatekeeper sonucu gösterilir. İmza ve Gatekeeper kontrolü arka planda yapılır, liste hemen açılır.
+- **Dikkat gerektirenler:** İmzasız ya da geçici imzalı uygulamalar, Gatekeeper'ın onaylamadıkları ve indirme adresi Kalkan'ın URL analizinde riskli çıkanlar işaretlenir.
+- **Kaldır:** Uygulamanın artıkları listelenir, siz seçersiniz:
+  - **Paket kimliğiyle kesin eşleşmeler:** `Application Support/<paket kimliği>`, `Caches`, `Preferences`, `Containers`, `Group Containers`, `LaunchAgents`, `Saved Application State`, `HTTPStorages`, `WebKit`, `Logs`.
+  - **Uygulama adıyla eşleşmeler:** Yalnızca başka bir yüklü uygulamayla paylaşılmayan klasörler. Örneğin Chrome ve Drive'ın ortak kullandığı `Application Support/Google` asla önerilmez.
+- **Güvenlik:**
+  - Apple'ın sistem uygulamaları (`com.apple.*`) listelenmez.
+  - Açık olan uygulama kaldırılmaz.
+  - Kalıcı silme yoktur: her şey Finder üzerinden Çöp Kutusu'na taşınır ve "Geri Koy" ile geri alınabilir. `/Applications` altındaki uygulamalar için macOS yönetici şifrenizi isteyebilir.
+  - Sunucu yalnızca kendi bulduğu yolları kabul eder.
+- **Sınır:** Bazı uygulamalar kendi yükleyicileriyle sistem klasörlerine (`/Library`) de dosya bırakır. Bunlar yönetici izni gerektirdiği için Kalkan tarafından kaldırılmaz. Bu tür uygulamalarda (ör. VPN ve sanallaştırma yazılımları) üreticinin kendi kaldırma aracını kullanın.
 
 ## QR ve görsel tarama
 

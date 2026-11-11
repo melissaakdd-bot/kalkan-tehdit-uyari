@@ -163,6 +163,7 @@
   <nav class="gorunumler" aria-label="Bölümler">
     <button class="aktif" data-gorunum="tara">Tara</button>
     <button data-gorunum="bilgisayar">Bilgisayar</button>
+    <button data-gorunum="uygulamalar">Uygulamalar</button>
     <button data-gorunum="toplu">Toplu tarama</button>
     <button data-gorunum="rapor">Rapor</button>
     <button data-gorunum="dogruluk">Doğruluk</button>
@@ -255,6 +256,43 @@
     </div>
     <div id="karantina" class="kucuk" style="margin-top:8px">Karantinada dosya yok.</div>
   </section>
+
+  <!-- UYGULAMALAR -->
+  <section class="kart gizli" data-gorunum-panel="uygulamalar">
+    <h2>Uygulamalar</h2>
+    <p class="kucuk">macOS'ta bir uygulamayı Çöp Kutusu'na sürüklemek ayarlarını, önbelleklerini ve açılışta başlayan servislerini geride bırakır.
+      Kalkan bunları da bulur ve seçtiklerinizi uygulamayla birlikte <b>Çöp Kutusu'na</b> taşır; Finder'daki "Geri Koy" ile geri alabilirsiniz.
+      Apple'ın sistem uygulamaları listelenmez.</p>
+    <div class="satir" style="margin:10px 0">
+      <input type="text" id="uygAra" placeholder="Uygulama ara…" autocomplete="off" style="max-width:260px">
+      <select id="uygSirala" aria-label="Sırala">
+        <option value="boyut">Boyuta göre</option>
+        <option value="kullanim">En uzun süredir kullanılmayan</option>
+        <option value="ad">Ada göre</option>
+      </select>
+      <label class="kucuk"><input type="checkbox" id="uygRiskli"> Yalnızca dikkat gerektirenler</label>
+      <span class="kucuk" id="uygBilgi"></span>
+    </div>
+    <div class="istat gizli" id="uygOzet"></div>
+    <div class="tablo-kap" style="max-height:none">
+      <table class="kart-tablo">
+        <thead><tr><th>Uygulama</th><th class="sayi">Boyut</th><th>Son kullanım</th><th>Güven</th><th>İşlemler</th></tr></thead>
+        <tbody id="uygTablo"><tr><td colspan="5" class="bos">Yükleniyor…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div id="kaldirPencere" class="gizli" role="dialog" aria-modal="true" aria-labelledby="kaldirBaslik"
+       style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:30">
+    <div class="kart" style="max-width:640px;width:100%;max-height:90vh;overflow:auto">
+      <h2 id="kaldirBaslik">Uygulamayı kaldır</h2>
+      <div id="kaldirIcerik" class="kucuk">Yükleniyor…</div>
+      <div class="satir" style="margin-top:14px;justify-content:flex-end">
+        <button class="ikincil" id="kaldirIptal">Vazgeç</button>
+        <button class="ana tehlike" id="kaldirOnay" disabled>Çöp Kutusu'na taşı</button>
+      </div>
+    </div>
+  </div>
 
   <!-- TOPLU -->
   <section class="kart gizli" data-gorunum-panel="toplu">
@@ -366,7 +404,7 @@
 <script>
 (() => {
   const $ = (s) => document.querySelector(s);
-  const PANEL_SURUM = "0.4.0"; // kalkan/main.py içindeki SURUM ile aynı olmalı
+  const PANEL_SURUM = "0.5.0"; // kalkan/main.py içindeki SURUM ile aynı olmalı
   const SEVIYE = { guvenli: "Güvenli", supheli: "Şüpheli", tehlikeli: "Tehlikeli", hata: "Okunamadı" };
   const KATEGORI = { temiz: "Temiz", phishing: "Oltalama (phishing)", spam: "Spam", zararli: "Zararlı yazılım", supheli: "Şüpheli" };
   const TUR = { eposta: "E-posta", sms: "SMS", url: "Bağlantı", dosya: "Dosya", sayfa: "Sayfa", gorsel: "Görsel", baslangic: "Başlangıç öğesi" };
@@ -418,16 +456,17 @@
   function gorunumAc(ad) {
     document.querySelectorAll("nav.gorunumler button").forEach((b) => b.classList.toggle("aktif", b.dataset.gorunum === ad));
     document.querySelectorAll("[data-gorunum-panel]").forEach((p) => p.classList.toggle("gizli", p.dataset.gorunumPanel !== ad));
-    $("#ana").classList.toggle("genis", ["rapor", "dogruluk", "bilgisayar"].includes(ad));
+    $("#ana").classList.toggle("genis", ["rapor", "dogruluk", "bilgisayar", "uygulamalar"].includes(ad));
     if (ad === "rapor") raporYukle();
     if (ad === "bilgisayar") sistemYukle();
+    if (ad === "uygulamalar") uygulamaYukle();
     if (ad === "dogruluk") dogrulukYukle();
     try { history.replaceState(null, "", "#" + ad); } catch (_) {}
   }
   document.querySelectorAll("nav.gorunumler button").forEach((b) => b.onclick = () => gorunumAc(b.dataset.gorunum));
   window.addEventListener("hashchange", () => {
     const h = location.hash.slice(1);
-    if (["tara", "bilgisayar", "toplu", "rapor", "dogruluk"].includes(h)) gorunumAc(h);
+    if (["tara", "bilgisayar", "uygulamalar", "toplu", "rapor", "dogruluk"].includes(h)) gorunumAc(h);
   });
 
   // ---------- Tara ----------
@@ -793,6 +832,124 @@
     } catch (_) {}
   }
 
+  // ---------- Uygulamalar ----------
+  let uygListe = [], uygZaman = null;
+  const boyutYaz = (b) => {
+    if (b == null) return "…";
+    const birimler = ["B", "KB", "MB", "GB", "TB"]; let i = 0, v = b;
+    while (v >= 1024 && i < birimler.length - 1) { v /= 1024; i++; }
+    return v.toLocaleString("tr-TR", { maximumFractionDigits: v < 10 && i > 1 ? 1 : 0 }) + " " + birimler[i];
+  };
+  const GUVEN = {
+    appstore: ["guvenli", "App Store"], gelistirici: ["guvenli", "Doğrulanmış geliştirici"], apple: ["guvenli", "Apple"],
+    imzasiz: ["tehlikeli", "İmzasız"], adhoc: ["supheli", "Geçici imza"], bilinmiyor: ["hata", "İmza okunamadı"],
+  };
+
+  async function uygulamaYukle() {
+    clearTimeout(uygZaman);
+    try {
+      const d = await api("/api/uygulamalar");
+      uygListe = d.uygulamalar;
+      $("#uygBilgi").textContent = d.hazir ? "" : "Boyut ve güvenlik bilgileri hesaplanıyor…";
+      uygCiz();
+      if (!d.hazir && !$('[data-gorunum-panel="uygulamalar"]').classList.contains("gizli")) uygZaman = setTimeout(uygulamaYukle, 2000);
+    } catch (e) {
+      $("#uygTablo").innerHTML = `<tr><td colspan="5" class="bos">${esc(e.message)}</td></tr>`;
+    }
+  }
+  ["#uygAra", "#uygSirala", "#uygRiskli"].forEach((s) => $(s).addEventListener(s === "#uygAra" ? "input" : "change", () => uygCiz()));
+
+  function uygCiz() {
+    const ara = $("#uygAra").value.trim().toLocaleLowerCase("tr-TR");
+    const sirala = $("#uygSirala").value;
+    let l = uygListe.filter((u) => !ara || u.ad.toLocaleLowerCase("tr-TR").includes(ara));
+    if ($("#uygRiskli").checked) l = l.filter((u) => (u.risk || []).length);
+    l.sort((a, b) => sirala === "boyut" ? (b.boyut || 0) - (a.boyut || 0)
+      : sirala === "kullanim" ? String(a.son_kullanim || "0000").localeCompare(String(b.son_kullanim || "0000"))
+      : a.ad.localeCompare(b.ad, "tr"));
+    const toplam = uygListe.reduce((t, u) => t + (u.boyut || 0), 0);
+    const riskli = uygListe.filter((u) => (u.risk || []).length).length;
+    $("#uygOzet").classList.remove("gizli");
+    $("#uygOzet").innerHTML = `
+      <div><b>${uygListe.length}</b><span>Uygulama</span></div>
+      <div><b>${boyutYaz(toplam)}</b><span>Toplam boyut</span></div>
+      <div><b style="color:${riskli ? "var(--bad)" : "var(--ok)"}">${riskli}</b><span>Dikkat gerektiren</span></div>
+      <div><b>${uygListe.filter((u) => !u.son_kullanim).length}</b><span>Hiç açılmamış görünen</span></div>`;
+    $("#uygTablo").innerHTML = l.length ? l.map((u) => {
+      const g = u.imza ? GUVEN[u.imza.durum] || GUVEN.bilinmiyor : null;
+      const gk = u.gatekeeper && u.gatekeeper.durum === "red";
+      const risk = (u.risk || []).length;
+      return `<tr>
+        <td><b>${esc(u.ad)}</b> <span class="kucuk">${esc(u.surum)}</span>
+          ${u.nereden ? `<div class="kucuk">İndirildiği yer: ${esc(u.nereden.replace(/^https?:\/\//, "").split("/")[0])}</div>` : ""}</td>
+        <td class="sayi" data-ad="Boyut">${boyutYaz(u.boyut)}</td>
+        <td data-ad="Son kullanım">${u.imza ? (u.son_kullanim ? new Date(u.son_kullanim).toLocaleDateString("tr-TR") : '<span class="kucuk">Bilinmiyor</span>') : "…"}</td>
+        <td data-ad="Güven">${g ? `<span class="etiket ${risk ? "tehlikeli" : g[0]}" title="${esc(u.imza.aciklama)}">${esc(g[1])}</span>` : "…"}
+          ${gk ? `<div class="kucuk" style="color:var(--bad)">Gatekeeper onaylamıyor</div>` : ""}
+          ${risk ? `<div class="kucuk">${u.risk.map(esc).join("<br>")}</div>` : ""}</td>
+        <td><div class="islemler">
+          <button class="ikincil" data-uyg-goster="${esc(u.id)}">📂 Klasörde göster</button>
+          <button class="ikincil tehlike-cizgi" data-uyg-kaldir="${esc(u.id)}">🗑️ Kaldır</button>
+        </div></td></tr>`;
+    }).join("") : `<tr><td colspan="5" class="bos">${uygListe.length ? "Eşleşen uygulama yok" : "Kaldırılabilir uygulama bulunamadı"}</td></tr>`;
+    document.querySelectorAll("[data-uyg-goster]").forEach((b) => b.onclick = () =>
+      api(`/api/uygulamalar/${b.dataset.uygGoster}/goster`, { method: "POST" }).catch((e) => alert(e.message)));
+    document.querySelectorAll("[data-uyg-kaldir]").forEach((b) => b.onclick = () => kaldirAc(b.dataset.uygKaldir));
+  }
+
+  let kaldirKimlik = null;
+  async function kaldirAc(kimlik) {
+    kaldirKimlik = kimlik;
+    $("#kaldirPencere").classList.remove("gizli");
+    $("#kaldirIcerik").textContent = "Uygulama ve artıkları aranıyor…";
+    $("#kaldirOnay").disabled = true;
+    try {
+      const d = await api(`/api/uygulamalar/${kimlik}/artiklar`);
+      const u = d.uygulama;
+      $("#kaldirBaslik").textContent = `${u.ad} uygulamasını kaldır`;
+      const satir = (a, i) => `<label class="satir" style="flex-wrap:nowrap;align-items:flex-start;gap:8px;margin:6px 0">
+        <input type="checkbox" data-artik="${i}" ${a.secili ? "checked" : ""}>
+        <span style="min-width:0"><span class="yol">${esc(ev(a.yol))}</span><br>
+          <span class="kucuk">${esc(boyutYaz(a.boyut))} · ${a.eslesme === "paket kimliği" ? "paket kimliğiyle kesin eşleşme" : "uygulama adıyla eşleşme"}</span></span></label>`;
+      $("#kaldirIcerik").innerHTML = `
+        ${u.calisiyor ? `<div class="not-kutusu" style="background:var(--bad-bg);margin-bottom:10px">⛔ <b>${esc(u.ad)} şu an açık.</b> Önce uygulamadan çıkın (⌘Q), sonra bu pencereyi yeniden açın.</div>` : ""}
+        <p style="margin:0 0 8px"><b>${esc(u.ad)}</b> ${esc(u.surum)} · <span class="yol">${esc(ev(u.yol))}</span> · ${boyutYaz(u.boyut)}</p>
+        <div class="alt-baslik" style="margin-top:12px">Geride kalan dosyalar (${d.artiklar.length})</div>
+        ${d.artiklar.length ? d.artiklar.map(satir).join("") : '<p>Library klasöründe artık dosya bulunamadı.</p>'}
+        <p class="kucuk" style="margin-top:12px" id="kaldirToplam"></p>
+        <p class="kucuk">Uygulama /Applications'taysa macOS yönetici şifrenizi isteyebilir.</p>`;
+      const toplamYaz = () => {
+        const secili = [...document.querySelectorAll("[data-artik]")].filter((c) => c.checked).map((c) => d.artiklar[+c.dataset.artik]);
+        $("#kaldirToplam").textContent = `Çöp Kutusu'na taşınacak: uygulama + ${secili.length} artık · toplam ${boyutYaz((u.boyut || 0) + secili.reduce((t, a) => t + (a.boyut || 0), 0))}`;
+        return secili;
+      };
+      document.querySelectorAll("[data-artik]").forEach((c) => c.onchange = toplamYaz);
+      toplamYaz();
+      $("#kaldirOnay").disabled = u.calisiyor;
+      $("#kaldirOnay").onclick = async () => {
+        const secili = toplamYaz().map((a) => a.yol);
+        if (!confirm(`${u.ad} ve seçilen ${secili.length} artık Çöp Kutusu'na taşınacak. Çöp Kutusu boşaltılana kadar geri alabilirsiniz. Devam edilsin mi?`)) return;
+        $("#kaldirOnay").disabled = true;
+        $("#kaldirOnay").textContent = "Taşınıyor…";
+        try {
+          const r = await api(`/api/uygulamalar/${kimlik}/kaldir`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ artiklar: secili }) });
+          let m = `${u.ad} ve ${r.artiklar.length} artık Çöp Kutusu'na taşındı.`;
+          if (r.hatalar.length) m += `\n${r.hatalar.length} artık taşınamadı:\n` + r.hatalar.map((h) => `• ${ev(h.yol)}: ${h.hata}`).join("\n");
+          alert(m);
+          kaldirKapat();
+          uygulamaYukle();
+        } catch (e) { alert("Kaldırılamadı: " + e.message); }
+        $("#kaldirOnay").textContent = "Çöp Kutusu'na taşı";
+        $("#kaldirOnay").disabled = false;
+      };
+    } catch (e) {
+      $("#kaldirIcerik").textContent = "Bilgi alınamadı: " + e.message;
+    }
+  }
+  function kaldirKapat() { $("#kaldirPencere").classList.add("gizli"); kaldirKimlik = null; }
+  $("#kaldirIptal").onclick = kaldirKapat;
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && kaldirKimlik) kaldirKapat(); });
+
   // ---------- Toplu tarama ----------
   let topluId = null, topluZaman = null, topluSon = null;
   $("#topluBaslat").onclick = async () => {
@@ -1018,7 +1175,7 @@
       kayitlar = await api("/api/gecmis?limit=200");
       akisCiz(); istatistikYukle(); akisBaglan();
       const h = location.hash.slice(1);
-      if (["bilgisayar", "toplu", "rapor", "dogruluk"].includes(h)) gorunumAc(h);
+      if (["bilgisayar", "uygulamalar", "toplu", "rapor", "dogruluk"].includes(h)) gorunumAc(h);
     } catch (e) { $("#bilgi").textContent = "Sunucuya bağlanılamadı: " + e.message; }
   }
   baslat();

@@ -17,7 +17,7 @@ from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Reques
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from . import bulk, config, karantina, service, sistem_tarama, store, watchers
+from . import bulk, config, karantina, service, sistem_tarama, store, uygulamalar, watchers
 from .alerts import yayinci
 from .detectors.image import ocr_kullanilabilir
 from .ml import model as ml_model
@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 STATIC = Path(__file__).resolve().parent.parent / "static"
 # Panel (static/index.html) beklediği sürümü bilir; sunucu eski kodla çalışıyorsa uyarı gösterir.
 # Uç nokta eklendiğinde ya da değiştiğinde ikisi birlikte artırılır.
-SURUM = "0.4.0"
+SURUM = "0.5.0"
 
 
 @asynccontextmanager
@@ -303,6 +303,54 @@ def temizle(istek: TemizleIstek) -> dict:
         except (FileNotFoundError, ValueError, PermissionError, OSError) as e:
             hatalar.append({"yol": b["yol"], "hata": str(e)})
     return {"karantinaya_alinan": alinan, "hatalar": hatalar}
+
+
+class KaldirIstek(BaseModel):
+    artiklar: List[str] = Field(default_factory=list, max_length=200)
+
+
+def _uygulama_destegi() -> None:
+    if not uygulamalar.destekleniyor():
+        raise HTTPException(status_code=400, detail="Uygulama yöneticisi yalnızca macOS'ta çalışır")
+
+
+@app.get("/api/uygulamalar", dependencies=[Depends(yetki)])
+def uygulama_listesi() -> dict:
+    _uygulama_destegi()
+    return uygulamalar.listele()
+
+
+@app.get("/api/uygulamalar/{kimlik}/artiklar", dependencies=[Depends(yetki)])
+def uygulama_artiklari(kimlik: str) -> dict:
+    _uygulama_destegi()
+    try:
+        return uygulamalar.artiklar(kimlik)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
+
+@app.post("/api/uygulamalar/{kimlik}/kaldir", dependencies=[Depends(yetki)])
+def uygulama_kaldir(kimlik: str, istek: KaldirIstek) -> dict:
+    """Uygulamayı ve seçilen artıklarını Çöp Kutusu'na taşır. Yalnızca sunucunun bulduğu yollar kabul edilir."""
+    _uygulama_destegi()
+    try:
+        return uygulamalar.kaldir(kimlik, istek.artiklar)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except (RuntimeError, PermissionError) as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@app.post("/api/uygulamalar/{kimlik}/goster", dependencies=[Depends(yetki)])
+def uygulama_goster(kimlik: str) -> dict:
+    _uygulama_destegi()
+    try:
+        karantina.klasorde_goster(str(uygulamalar._bul(kimlik)))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"ok": True}
 
 
 @app.get("/api/karantina", dependencies=[Depends(yetki)])

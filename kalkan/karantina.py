@@ -107,19 +107,28 @@ def karantina_dosyasi(kimlik: str) -> Path:
 
 
 def cop_kutusuna_tasi(yol: str, beklenen_sha256: Optional[str] = None) -> str:
-    """Dosyayı işletim sisteminin çöp kutusuna taşır; kullanıcı oradan geri alabilir.
-
-    macOS'ta Finder üzerinden taşınır (Finder'ın "Geri Koy" seçeneği çalışsın diye); olmazsa ~/.Trash'e taşınır.
-    """
+    """Taramada bulunan bir dosyayı (hash'i değişmediyse) çöp kutusuna taşır."""
     kaynak = Path(yol)
     if kaynak.is_symlink() or not kaynak.is_file():
         raise FileNotFoundError("Dosya bulunamadı ya da taşınmış")
     if beklenen_sha256 and _sha256(kaynak) != beklenen_sha256:
         raise ValueError("Dosya taramadan sonra değişmiş; güvenlik için taşınmadı. Yeniden tarayın.")
+    return cop_kutusuna(kaynak)
+
+
+def cop_kutusuna(kaynak: Path) -> str:
+    """Dosyayı ya da klasörü (ör. .app paketi) işletim sisteminin çöp kutusuna taşır; kullanıcı oradan geri alabilir.
+
+    macOS'ta Finder üzerinden taşınır: "Geri Koy" çalışır ve yönetici izni gereken uygulamalarda Finder
+    şifre sorar. Finder kullanılamazsa ~/.Trash'e taşınır.
+    """
+    if not (kaynak.exists() or kaynak.is_symlink()):
+        raise FileNotFoundError("Bulunamadı ya da taşınmış")
     sistem = platform.system()
     if sistem == "Darwin":
         betik = 'on run argv\ntell application "Finder" to delete (POSIX file (item 1 of argv) as alias)\nend run'
-        p = subprocess.run(["osascript", "-e", betik, str(kaynak)], capture_output=True, text=True, timeout=30)
+        # Yönetici şifresi isteyen uygulamalarda kullanıcının yazmasına zaman tanınır
+        p = subprocess.run(["osascript", "-e", betik, str(kaynak)], capture_output=True, text=True, timeout=180)
         if p.returncode == 0 and not kaynak.exists():
             return "Çöp Kutusu"
         cop = Path.home() / ".Trash"

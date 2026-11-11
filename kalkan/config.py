@@ -68,6 +68,10 @@ OTOMATIK_TARAMA_SAAT = float(os.getenv("KALKAN_OTOMATIK_TARAMA_SAAT", "24"))
 # Karantinaya alınan dosyaların taşındığı klasör
 KARANTINA_DIR = Path(os.getenv("KALKAN_KARANTINA_DIR", str(Path.home() / ".kalkan" / "karantina")))
 
+# Uygulama yöneticisi (macOS): taranan uygulama klasörleri ve artıkların aranacağı Library
+UYGULAMA_DIZINLERI = [p for p in os.getenv("KALKAN_UYGULAMA_DIZINLERI", "/Applications:~/Applications").split(":") if p]
+KULLANICI_LIBRARY = os.getenv("KALKAN_KULLANICI_LIBRARY", str(Path.home() / "Library"))
+
 # İzleyiciler
 WATCH_DIR = os.getenv("KALKAN_WATCH_DIR", "")
 WATCH_INTERVAL = int(os.getenv("KALKAN_WATCH_INTERVAL", "5"))
