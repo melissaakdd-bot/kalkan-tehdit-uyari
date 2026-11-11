@@ -14,7 +14,12 @@ from .detectors.url import url_analiz
 
 # Bu kaynaklardan gelen içerik dış API'ye (Claude) gönderilmez:
 # gezinme geçmişi ve toplu e-postalar kişisel veri yoğundur, toplu işte maliyet de kontrolsüz büyür.
-LLM_DISI_KAYNAKLAR = {"tarayici", "toplu", "klasor"}
+LLM_DISI_KAYNAKLAR = {"tarayici", "toplu", "klasor", "sistem"}
+
+
+def sonuc_isle(sonuc) -> Dict[str, Any]:
+    """Hazır bir sonucu sayar; uyarıysa kaydeder ve bildirir (bilgisayar taraması için)."""
+    return _tamamla(sonuc, None, yalniz_uyari_kaydet=True)
 
 
 def _tamamla(sonuc, icerik_llm: Optional[str], yalniz_uyari_kaydet: bool = False) -> Dict[str, Any]:

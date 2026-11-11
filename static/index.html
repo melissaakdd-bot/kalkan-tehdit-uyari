@@ -101,6 +101,17 @@
   .etiket::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
   .etiket.tehlikeli { color: var(--bad); } .etiket.supheli { color: var(--warn); } .etiket.guvenli { color: var(--ok); } .etiket.hata { color: var(--muted); }
 
+  /* Bilgisayar */
+  .secenekler { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 8px; }
+  @media (max-width: 900px) { .secenekler { grid-template-columns: 1fr; } }
+  .secenek { text-align: left; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px; font: inherit; color: var(--ink); min-width: 0; }
+  button.secenek { cursor: pointer; }
+  button.secenek:hover { border-color: var(--accent); }
+  button.secenek:disabled { opacity: .5; cursor: progress; }
+  .secenek b { display: block; margin-bottom: 3px; }
+  .secenek span { color: var(--muted); font-size: 13px; }
+  .yol { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+
   /* Rapor */
   .izgara { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   @media (max-width: 900px) { .izgara { grid-template-columns: 1fr; } .istat { grid-template-columns: repeat(2, 1fr); } }
@@ -138,6 +149,7 @@
   </div>
   <nav class="gorunumler" aria-label="Bölümler">
     <button class="aktif" data-gorunum="tara">Tara</button>
+    <button data-gorunum="bilgisayar">Bilgisayar</button>
     <button data-gorunum="toplu">Toplu tarama</button>
     <button data-gorunum="rapor">Rapor</button>
     <button data-gorunum="dogruluk">Doğruluk</button>
@@ -188,6 +200,38 @@
       <span class="kucuk" id="bilgi"></span>
     </div>
     <div id="sonuc"></div>
+  </section>
+
+  <!-- BİLGİSAYAR -->
+  <section class="kart gizli" data-gorunum-panel="bilgisayar">
+    <h2>Bilgisayar taraması</h2>
+    <p class="kucuk" id="sistemSon">Son tarama bilgisi yükleniyor…</p>
+    <div class="secenekler">
+      <button class="secenek" data-sistem="hizli"><b>Hızlı tarama</b><span>İndirilenler, Masaüstü, Belgeler, geçici klasörler ve açılışta başlayan programlar. Birkaç saniye sürer.</span></button>
+      <button class="secenek" data-sistem="tam"><b>Tam tarama</b><span>Tüm kullanıcı klasörünüz. Dosya sayısına göre birkaç dakika sürebilir.</span></button>
+      <div class="secenek">
+        <b>Klasör tara</b>
+        <div class="satir" style="margin-top:6px;flex-wrap:nowrap">
+          <input type="text" id="sistemKlasor" placeholder="~/Projeler" autocomplete="off">
+          <button class="ikincil" data-sistem="klasor">Tara</button>
+        </div>
+      </div>
+    </div>
+    <div class="ipucu">Kalkan dosyaları yalnızca okur; hiçbir dosyayı kendiliğinden silmez ya da değiştirmez. Program, betik, arşiv, Office ve PDF dosyaları ile türü uzantısına uymayan dosyalar derin incelenir. iCloud'da duran (bilgisayara indirilmemiş) dosyalar indirilmeden atlanır.</div>
+    <div class="satir">
+      <button class="ikincil gizli" id="sistemIptal">Durdur</button>
+      <span class="kucuk" id="sistemBilgi"></span>
+    </div>
+    <div class="istat gizli" id="sistemOzet" style="margin-top:12px"></div>
+    <div class="kucuk gizli" id="sistemKonum" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+    <div class="tablo-kap gizli" id="sistemTabloKap">
+      <table>
+        <thead><tr><th>Seviye</th><th class="sayi">Puan</th><th>Konum</th><th>Nedenler</th><th></th></tr></thead>
+        <tbody id="sistemTablo"></tbody>
+      </table>
+    </div>
+    <h3 class="alt-baslik" style="margin-top:20px">Karantina</h3>
+    <div id="karantina" class="kucuk">Karantinada dosya yok.</div>
   </section>
 
   <!-- TOPLU -->
@@ -302,8 +346,8 @@
   const $ = (s) => document.querySelector(s);
   const SEVIYE = { guvenli: "Güvenli", supheli: "Şüpheli", tehlikeli: "Tehlikeli", hata: "Okunamadı" };
   const KATEGORI = { temiz: "Temiz", phishing: "Oltalama (phishing)", spam: "Spam", zararli: "Zararlı yazılım", supheli: "Şüpheli" };
-  const TUR = { eposta: "E-posta", sms: "SMS", url: "Bağlantı", dosya: "Dosya", sayfa: "Sayfa", gorsel: "Görsel" };
-  const KAYNAK = { panel: "Panel", klasor: "Klasör izleme", imap: "Posta kutusu", api: "API", tarayici: "Tarayıcı eklentisi", toplu: "Toplu tarama" };
+  const TUR = { eposta: "E-posta", sms: "SMS", url: "Bağlantı", dosya: "Dosya", sayfa: "Sayfa", gorsel: "Görsel", baslangic: "Başlangıç öğesi" };
+  const KAYNAK = { panel: "Panel", klasor: "Klasör izleme", imap: "Posta kutusu", api: "API", tarayici: "Tarayıcı eklentisi", toplu: "Toplu tarama", sistem: "Bilgisayar taraması" };
   const KANAL = { eposta: "E-posta", sms: "SMS", url: "URL" };
   const KAYNAK_VERI = { nazario: "Nazario phishing e-postaları", spamassassin: "SpamAssassin e-postaları", uci_tr_spam: "UCI Türkçe e-posta", uci_sms_en: "UCI İngilizce SMS", phiusiil: "PhiUSIIL URL" };
 
@@ -350,15 +394,16 @@
   function gorunumAc(ad) {
     document.querySelectorAll("nav.gorunumler button").forEach((b) => b.classList.toggle("aktif", b.dataset.gorunum === ad));
     document.querySelectorAll("[data-gorunum-panel]").forEach((p) => p.classList.toggle("gizli", p.dataset.gorunumPanel !== ad));
-    $("#ana").classList.toggle("genis", ad === "rapor" || ad === "dogruluk");
+    $("#ana").classList.toggle("genis", ["rapor", "dogruluk", "bilgisayar"].includes(ad));
     if (ad === "rapor") raporYukle();
+    if (ad === "bilgisayar") sistemYukle();
     if (ad === "dogruluk") dogrulukYukle();
     try { history.replaceState(null, "", "#" + ad); } catch (_) {}
   }
   document.querySelectorAll("nav.gorunumler button").forEach((b) => b.onclick = () => gorunumAc(b.dataset.gorunum));
   window.addEventListener("hashchange", () => {
     const h = location.hash.slice(1);
-    if (["tara", "toplu", "rapor", "dogruluk"].includes(h)) gorunumAc(h);
+    if (["tara", "bilgisayar", "toplu", "rapor", "dogruluk"].includes(h)) gorunumAc(h);
   });
 
   // ---------- Tara ----------
@@ -527,6 +572,13 @@
     kaynak = new EventSource("/api/olaylar" + (token ? "?token=" + encodeURIComponent(token) : ""));
     kaynak.onmessage = (e) => {
       const olay = JSON.parse(e.data);
+      if (olay.tip === "sistem_tarama") {
+        const d = olay.veri;
+        if (!$('[data-gorunum-panel="bilgisayar"]').classList.contains("gizli")) sistemYukle();
+        if (d.uyari) toast({ seviye: d.tehlikeli ? "tehlikeli" : "supheli", kategori: "zararli", kaynak: "sistem",
+          hedef: `${SISTEM_TUR[d.tur] || d.tur}: ${d.uyari} dosyada sorun bulundu`, tur: "dosya" });
+        return;
+      }
       if (olay.tip !== "tarama") return;
       const k = olay.veri; k._yeni = true;
       kayitlar.unshift(k);
@@ -534,8 +586,107 @@
       akisCiz();
       clearTimeout(istatZamanlayici);
       istatZamanlayici = setTimeout(istatistikYukle, 400); // toplu taramada istek yağmuru olmasın
-      if (k.seviye !== "guvenli" && k.kaynak !== "panel" && k.kaynak !== "toplu") toast(k);
+      // Toplu ve bilgisayar taramalarında her öğe için değil, iş sonunda tek özet bildirimi gösterilir
+      if (k.seviye !== "guvenli" && !["panel", "toplu", "sistem"].includes(k.kaynak)) toast(k);
     };
+  }
+
+  // ---------- Bilgisayar taraması ----------
+  const SISTEM_TUR = { hizli: "Hızlı tarama", tam: "Tam tarama", klasor: "Klasör taraması" };
+  let sistemId = null, sistemZaman = null;
+  const ev = (y) => String(y || "").replace(/^\/Users\/[^/]+/, "~");
+
+  async function sistemYukle() {
+    try {
+      const d = await api("/api/sistem/durum");
+      const s = d.son_tarama;
+      const oto = d.otomatik_saat > 0 ? `Otomatik hızlı tarama ${d.otomatik_saat} saatte bir çalışır.` : "Otomatik tarama kapalı.";
+      $("#sistemSon").textContent = (s
+        ? `Son tamamlanan tarama: ${saat(s.zaman)} · ${SISTEM_TUR[s.tur] || s.tur} · ${sayi(s.taranan)} dosya · ${s.uyari ? s.uyari + " uyarı" : "sorun bulunmadı"}. `
+        : "Bu bilgisayar henüz taranmadı. ") + oto;
+      if (d.is) { sistemId = d.is.id; sistemCiz(d.is); if (d.is.durum === "calisiyor") sistemIzle(); }
+    } catch (e) { $("#sistemSon").textContent = "Durum alınamadı: " + e.message; }
+    karantinaYukle();
+  }
+
+  document.querySelectorAll("[data-sistem]").forEach((b) => b.onclick = async () => {
+    const tur = b.dataset.sistem;
+    const klasor = $("#sistemKlasor").value.trim();
+    if (tur === "klasor" && !klasor) return ($("#sistemBilgi").textContent = "Önce bir klasör yazın (ör. ~/Projeler).");
+    $("#sistemBilgi").textContent = "Başlatılıyor…";
+    try {
+      const j = await api("/api/sistem/tara", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tur, klasor }) });
+      sistemId = j.id;
+      sistemIzle();
+    } catch (e) { $("#sistemBilgi").textContent = "Hata: " + e.message; }
+  });
+  $("#sistemIptal").onclick = () => sistemId && api(`/api/sistem/${sistemId}/iptal`, { method: "POST" });
+
+  async function sistemIzle() {
+    clearTimeout(sistemZaman);
+    try {
+      const d = (await api(`/api/sistem/durum?is_id=${sistemId}`)).is;
+      if (!d) return;
+      sistemCiz(d);
+      if (d.durum === "calisiyor") sistemZaman = setTimeout(sistemIzle, 700);
+      else sistemYukle();
+    } catch (e) { $("#sistemBilgi").textContent = "Hata: " + e.message; }
+  }
+
+  function sistemCiz(d) {
+    const calisiyor = d.durum === "calisiyor";
+    document.querySelectorAll("[data-sistem]").forEach((b) => b.disabled = calisiyor);
+    $("#sistemIptal").classList.toggle("gizli", !calisiyor);
+    ["#sistemOzet", "#sistemTabloKap"].forEach((s) => $(s).classList.remove("gizli"));
+    $("#sistemKonum").classList.toggle("gizli", !calisiyor);
+    $("#sistemKonum").textContent = calisiyor ? "Taranıyor: " + ev(d.konum) : "";
+    const sure = ((d.bitis || Date.now() / 1000) - d.baslangic).toFixed(1).replace(".", ",");
+    const durumYazi = { calisiyor: "Taranıyor", bitti: "Tamamlandı", iptal: "Durduruldu", hata: "Hata" }[d.durum] || d.durum;
+    let bilgi = `${SISTEM_TUR[d.tur] || d.tur} · ${durumYazi} · ${sure} sn`;
+    if (d.bulutta) bilgi += ` · iCloud'daki ${sayi(d.bulutta)} dosya indirilmeden atlandı`;
+    if (d.erisilemeyen > 20) bilgi += ` · ${sayi(d.erisilemeyen)} konuma erişilemedi (macOS'ta Terminal'e "Tam Disk Erişimi" verilebilir)`;
+    if (d.hata) bilgi += " · " + d.hata;
+    $("#sistemBilgi").textContent = bilgi;
+    $("#sistemOzet").innerHTML = `
+      <div><b>${sayi(d.taranan)}</b><span>Bakılan dosya</span></div>
+      <div><b>${sayi(d.derin)}</b><span>Derin incelenen</span></div>
+      <div><b style="color:var(--bad)">${sayi(d.tehlikeli)}</b><span>⛔ Tehlikeli</span></div>
+      <div><b style="color:var(--warn)">${sayi(d.uyari - d.tehlikeli)}</b><span>⚠️ Şüpheli</span></div>`;
+    const b = d.bulgular || [];
+    $("#sistemTablo").innerHTML = b.length ? b.map((x) => `<tr>
+      <td><span class="etiket ${esc(x.seviye)}">${esc(SEVIYE[x.seviye])}</span></td>
+      <td class="sayi">${Number(x.puan) || 0}</td>
+      <td class="yol" style="min-width:200px;max-width:380px">${esc(ev(x.yol))}${x.tur === "baslangic" ? '<br><span class="kucuk">Açılışta başlayan öğe</span>' : ""}</td>
+      <td class="kucuk" style="min-width:260px">${x.nedenler.map(esc).join("<br>")}</td>
+      <td style="white-space:nowrap">${x.karantina ? '<span class="kucuk">Karantinada</span>'
+        : x.tur === "dosya" ? `<button class="ikincil" data-karantina="${Number(x.no)}">Karantinaya al</button>` : ""}</td></tr>`).join("")
+      : `<tr><td colspan="5" class="bos">${calisiyor ? "Taranıyor…" : "✅ Sorun bulunmadı"}</td></tr>`;
+    document.querySelectorAll("[data-karantina]").forEach((btn) => btn.onclick = async () => {
+      const x = b.find((y) => String(y.no) === btn.dataset.karantina);
+      if (!confirm(`Bu dosya karantinaya taşınacak ve çalıştırılamaz hâle gelecek:\n\n${ev(x.yol)}\n\nİstediğiniz zaman geri yükleyebilirsiniz. Devam edilsin mi?`)) return;
+      btn.disabled = true;
+      try {
+        await api("/api/karantina", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_id: d.id, no: x.no }) });
+        x.karantina = true; sistemCiz(d); karantinaYukle();
+      } catch (e) { alert("Karantinaya alınamadı: " + e.message); btn.disabled = false; }
+    });
+  }
+
+  async function karantinaYukle() {
+    try {
+      const l = await api("/api/karantina");
+      $("#karantina").innerHTML = l.length ? `<table><thead><tr><th>Dosya</th><th>Alındığı yer</th><th>Tarih</th><th>Neden</th><th></th></tr></thead><tbody>${
+        l.map((k) => `<tr><td style="min-width:140px;word-break:break-all">${esc(k.ad)}</td><td class="yol" style="max-width:360px">${esc(ev(k.orijinal))}</td>
+          <td style="white-space:nowrap">${saat(k.zaman)}</td>
+          <td class="kucuk" style="min-width:200px">${esc((k.nedenler || [])[0] || "")}</td>
+          <td style="white-space:nowrap"><button class="ikincil" data-geri="${esc(k.id)}">Geri yükle</button></td></tr>`).join("")}</tbody></table>`
+        : "Karantinada dosya yok.";
+      document.querySelectorAll("[data-geri]").forEach((btn) => btn.onclick = async () => {
+        if (!confirm("Dosya eski konumuna geri taşınacak. Kalkan onu tehlikeli bulmuştu. Emin misiniz?")) return;
+        try { await api(`/api/karantina/${btn.dataset.geri}/geri-yukle`, { method: "POST" }); karantinaYukle(); }
+        catch (e) { alert("Geri yüklenemedi: " + e.message); }
+      });
+    } catch (_) {}
   }
 
   // ---------- Toplu tarama ----------
@@ -755,7 +906,7 @@
       kayitlar = await api("/api/gecmis?limit=200");
       akisCiz(); istatistikYukle(); akisBaglan();
       const h = location.hash.slice(1);
-      if (["toplu", "rapor", "dogruluk"].includes(h)) gorunumAc(h);
+      if (["bilgisayar", "toplu", "rapor", "dogruluk"].includes(h)) gorunumAc(h);
     } catch (e) { $("#bilgi").textContent = "Sunucuya bağlanılamadı: " + e.message; }
   }
   baslat();

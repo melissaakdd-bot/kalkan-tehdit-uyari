@@ -98,6 +98,9 @@ def baslat() -> None:
         threading.Thread(target=_klasor_izle, name="klasor-izleyici", daemon=True).start()
     if config.IMAP_HOST and config.IMAP_USER and config.IMAP_PASSWORD:
         threading.Thread(target=_imap_izle, name="imap-izleyici", daemon=True).start()
+    if config.OTOMATIK_TARAMA_SAAT > 0:
+        from .sistem_tarama import otomatik_dongu
+        threading.Thread(target=otomatik_dongu, args=(_durdur,), name="otomatik-tarama", daemon=True).start()
 
 
 def durdur() -> None:

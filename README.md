@@ -16,6 +16,7 @@ Türkçe phishing için açık veri olmadığından ölçülemedi. Ayrıntılar 
 
 | Özellik | Açıklama |
 |---|---|
+| **Bilgisayar taraması** | Hızlı tarama (İndirilenler, Masaüstü, Belgeler, geçici klasörler, açılışta başlayan programlar), tam tarama (tüm kullanıcı klasörü) ya da seçilen klasör. Varsayılan olarak günde bir kez kendiliğinden hızlı tarama yapar. Tehlikeli dosyalar onayla karantinaya alınır ve geri yüklenebilir. |
 | **Otomatik koruma (Chrome eklentisi)** | Açılan her sayfanın adresini ve şifre/kart formlarını tarar. Tehlikeli sayfada tam ekran uyarı ve sistem bildirimi, şüpheli sayfada sarı çubuk gösterir. İndirilen dosyaları da tarar. |
 | **E-posta / SMS** | Ham e-posta verilirse SPF/DKIM/DMARC, gönderen taklidi, Reply-To ve ekler de incelenir. |
 | **Bağlantı** | Marka ve yazım taklidi, benzer harf, kısaltıcı, IP adresi, ücretsiz barındırma servisleri. Alan adları ayrıca bir ML modeline sorulur. |
@@ -66,6 +67,25 @@ Bundan sonra açtığınız her sayfa otomatik taranır. Eklenti simgesindeki ro
 Simgeye tıklayınca o sayfanın sonucu ve nedenleri görünür. Otomatik koruma ve indirme taraması da buradan kapatılabilir.
 
 **Gizlilik:** Eklenti sayfanın adresini, başlığını, görünen metnin ilk 5.000 karakterini ve formların hangi adrese gönderildiğini **yalnızca bu bilgisayardaki** Kalkan sunucusuna gönderir. Girdiğiniz şifre ve kart bilgileri okunmaz. Sunucu temiz sayfaları kaydetmez, sayfa metnini hiç saklamaz ve tarayıcı taramalarını Claude'a göndermez. İndirilen dosyalar yalnızca İndirilenler klasöründen okunur (`KALKAN_INDIRME_DIZINI`).
+
+## Bilgisayar taraması
+
+Panelde **Bilgisayar** bölümünden ya da komut satırından:
+
+```bash
+.venv/bin/python -m kalkan.sistem_tarama hizli
+```
+
+`hizli` yerine `tam` ya da bir klasör yolu da verilebilir. Tarama şöyle çalışır:
+
+- **Akıllı eleme:** Her dosyaya adı ve ilk 16 baytıyla bakılır. Derin incelemeye yalnızca program, betik, arşiv, Office ve PDF dosyaları ile türü uzantısına uymayan dosyalar girer (ör. `.jpg` adlı program). Bu bilgisayardaki hızlı tarama 7.817 dosyaya 2,5 saniyede baktı.
+- **Açılışta başlayan programlar:** macOS LaunchAgent/LaunchDaemon ve Linux autostart öğeleri ayrıca incelenir. İnternetten indirip kabukta çalıştıran komutlar, geçici ya da gizli klasörden başlatılan programlar ve kullanıcı klasöründeki `com.apple.` taklitleri işaretlenir.
+- **Atlananlar:** `node_modules`, `.venv`, `.git`, önbellekler ve `.app` paketlerinin içi. iCloud'da duran (bilgisayara indirilmemiş) dosyalar okunmaz, çünkü okumak onları buluttan indirtir.
+- **Salt okunur:** Kalkan hiçbir dosyayı kendiliğinden silmez ya da değiştirmez. **Karantinaya al** düğmesi dosyayı `~/.kalkan/karantina` klasörüne taşır ve çalıştırma iznini kaldırır. Dosya tarandıktan sonra değiştiyse taşınmaz. **Geri yükle** dosyayı eski yerine koyar.
+- **Gizlilik:** Sistem taramasında hash'ler VirusTotal'e ve içerik Claude'a gönderilmez. Temiz dosyalar kaydedilmez.
+- **macOS izinleri:** Çok sayıda konuma "erişilemedi" deniyorsa Sistem Ayarları → Gizlilik ve Güvenlik → Tam Disk Erişimi'nden Kalkan'ı başlattığınız uygulamaya (ör. Terminal) izin verebilirsiniz.
+
+Otomatik tarama aralığı `KALKAN_OTOMATIK_TARAMA_SAAT` ile değiştirilir (varsayılan 24, `0` kapatır). İlk kontrol sunucu açıldıktan 10 dakika sonra yapılır. Son taramadan bu yana süre dolmadıysa tarama yapılmaz.
 
 ## QR ve görsel tarama
 
@@ -118,6 +138,8 @@ Kurumunuzdan gelen gerçek ve anonimleştirilmiş örneklerle ölçmek en güven
 | `VIRUSTOTAL_API_KEY` | Dosya hash sorgusu |
 | `KALKAN_WEBHOOK_URL` | Slack/Teams gelen webhook adresi |
 | `KALKAN_INDIRME_DIZINI` | Eklentinin indirdiği dosyaların okunabileceği tek klasör (varsayılan `~/Downloads`) |
+| `KALKAN_OTOMATIK_TARAMA_SAAT` | Otomatik hızlı bilgisayar taraması aralığı, saat (varsayılan 24, `0` kapatır) |
+| `KALKAN_KARANTINA_DIR` | Karantina klasörü (varsayılan `~/.kalkan/karantina`) |
 | `KALKAN_WATCH_DIR` | İzlenecek klasör, ör. `~/Downloads` |
 | `KALKAN_IMAP_HOST`, `KALKAN_IMAP_USER`, `KALKAN_IMAP_PASSWORD`, `KALKAN_IMAP_FOLDER` | Posta kutusu izleme. Uygulamaya özel şifre kullanın. |
 | `KALKAN_MAX_DOSYA_MB`, `KALKAN_MAX_TOPLU_MB` | Yükleme sınırları (varsayılan 25 / 200) |

@@ -16,7 +16,7 @@ from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Reques
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from . import bulk, config, service, store, watchers
+from . import bulk, config, karantina, service, sistem_tarama, store, watchers
 from .alerts import yayinci
 from .detectors.image import ocr_kullanilabilir
 from .ml import model as ml_model
@@ -168,6 +168,71 @@ def toplu_csv(is_id: str) -> PlainTextResponse:
         raise HTTPException(status_code=404, detail="İş bulunamadı")
     return PlainTextResponse("﻿" + metin, media_type="text/csv; charset=utf-8",
                              headers={"Content-Disposition": f'attachment; filename="kalkan_toplu_{is_id}.csv"'})
+
+
+class SistemIstek(BaseModel):
+    tur: str = Field("hizli", pattern="^(hizli|tam|klasor)$")
+    klasor: str = Field("", max_length=4000)
+
+
+class KarantinaIstek(BaseModel):
+    is_id: str = Field(..., pattern="^[a-f0-9]{12}$")
+    no: int = Field(..., ge=0)
+
+
+@app.post("/api/sistem/tara", dependencies=[Depends(yetki)])
+def sistem_tara(istek: SistemIstek) -> dict:
+    try:
+        return {"id": sistem_tarama.baslat(istek.tur, istek.klasor or None)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@app.get("/api/sistem/durum", dependencies=[Depends(yetki)])
+def sistem_durum(is_id: Optional[str] = None) -> dict:
+    d = sistem_tarama.durum(is_id) if is_id else sistem_tarama.son_is()
+    return {
+        "is": d,
+        "son_tarama": sistem_tarama.son_tarama(),
+        "otomatik_saat": config.OTOMATIK_TARAMA_SAAT,
+        "hizli_konumlar": [str(k) for k, _ in sistem_tarama.hizli_konumlar()],
+    }
+
+
+@app.post("/api/sistem/{is_id}/iptal", dependencies=[Depends(yetki)])
+def sistem_iptal(is_id: str) -> dict:
+    return {"ok": sistem_tarama.iptal(is_id)}
+
+
+@app.post("/api/karantina", dependencies=[Depends(yetki)])
+def karantinaya_al(istek: KarantinaIstek) -> dict:
+    """Yalnızca bir bilgisayar taramasının bulduğu dosya karantinaya alınabilir (keyfi yol kabul edilmez)."""
+    b = sistem_tarama.bulgu(istek.is_id, istek.no)
+    if b is None:
+        raise HTTPException(status_code=404, detail="Tarama bulgusu bulunamadı")
+    if b["tur"] != "dosya":
+        raise HTTPException(status_code=400, detail="Başlangıç öğeleri karantinaya alınamaz; README'deki adımlarla kaldırın")
+    try:
+        meta = karantina.al(b["yol"], b.get("sha256"), b["nedenler"])
+    except (FileNotFoundError, ValueError, PermissionError, OSError) as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    b["karantina"] = meta["id"]
+    return meta
+
+
+@app.get("/api/karantina", dependencies=[Depends(yetki)])
+def karantina_listesi() -> list:
+    return karantina.listele()
+
+
+@app.post("/api/karantina/{kimlik}/geri-yukle", dependencies=[Depends(yetki)])
+def karantina_geri(kimlik: str) -> dict:
+    try:
+        return karantina.geri_yukle(kimlik)
+    except (FileNotFoundError, FileExistsError, ValueError, OSError) as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
 @app.get("/api/gecmis", dependencies=[Depends(yetki)])
