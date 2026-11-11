@@ -8,12 +8,13 @@ import asyncio
 import hmac
 import json
 import logging
+import subprocess
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile
-from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import bulk, config, karantina, service, sistem_tarama, store, watchers
@@ -26,7 +27,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 STATIC = Path(__file__).resolve().parent.parent / "static"
 # Panel (static/index.html) beklediği sürümü bilir; sunucu eski kodla çalışıyorsa uyarı gösterir.
 # Uç nokta eklendiğinde ya da değiştiğinde ikisi birlikte artırılır.
-SURUM = "0.3.0"
+SURUM = "0.4.0"
 
 
 @asynccontextmanager
@@ -41,6 +42,25 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Kalkan", description="Yapay zekâ destekli tehdit uyarı sistemi", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def baska_site_koruma(request: Request, call_next):
+    """Dışarıdan istek sahteciliğine (CSRF) karşı koruma.
+
+    Tarayıcıda açık kötü niyetli bir site, kullanıcının bilgisayarındaki bu sunucuya form ile POST
+    gönderebilir (ör. karantinadaki zararlıyı geri yükletmek, karantinayı boşaltmak). Değişiklik yapan
+    isteklerde Origin başlığı varsa yalnızca panelin kendi adresi ve Chrome eklentisi kabul edilir.
+    """
+    if request.method not in ("GET", "HEAD", "OPTIONS"):
+        kaynak = request.headers.get("origin")
+        if kaynak and kaynak != "null":
+            izinli = kaynak.startswith("chrome-extension://") or kaynak.split("://", 1)[-1] == request.headers.get("host", "")
+            if not izinli:
+                return JSONResponse({"detail": "Başka bir siteden gelen istek reddedildi"}, status_code=403)
+        elif kaynak == "null":
+            return JSONResponse({"detail": "Kaynağı belirsiz istek reddedildi"}, status_code=403)
+    return await call_next(request)
 
 
 def yetki(x_kalkan_token: Optional[str] = Header(default=None), token: Optional[str] = Query(default=None)) -> None:
@@ -225,9 +245,97 @@ def karantinaya_al(istek: KarantinaIstek) -> dict:
     return meta
 
 
+def _bulgu_al(istek: "KarantinaIstek") -> Dict[str, Any]:
+    b = sistem_tarama.bulgu(istek.is_id, istek.no)
+    if b is None:
+        raise HTTPException(status_code=404, detail="Tarama bulgusu bulunamadı")
+    return b
+
+
+@app.post("/api/sistem/goster", dependencies=[Depends(yetki)])
+def bulguyu_goster(istek: KarantinaIstek) -> dict:
+    """Bulunan dosyayı Finder'da (Windows'ta Gezgin'de) seçili gösterir."""
+    b = _bulgu_al(istek)
+    if b.get("karantina") or b.get("silindi"):
+        raise HTTPException(status_code=409, detail="Dosya artık bu konumda değil")
+    try:
+        karantina.klasorde_goster(b["yol"])
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    return {"ok": True}
+
+
+@app.post("/api/sistem/cop", dependencies=[Depends(yetki)])
+def cop_kutusuna(istek: KarantinaIstek) -> dict:
+    """Bulunan dosyayı (ya da başlangıç öğesini) çöp kutusuna taşır. Kullanıcı oradan geri alabilir."""
+    b = _bulgu_al(istek)
+    try:
+        nereye = karantina.cop_kutusuna_tasi(b["yol"], b.get("sha256"))
+    except (FileNotFoundError, ValueError, PermissionError, OSError, subprocess.TimeoutExpired) as e:
+        mesaj = str(e)
+        if isinstance(e, PermissionError):
+            mesaj = "İzin yok: sistem klasöründeki öğeler için yönetici izni gerekir (README → Bilgisayar taraması)"
+        raise HTTPException(status_code=409, detail=mesaj)
+    b["silindi"] = nereye
+    return {"ok": True, "nereye": nereye}
+
+
+class TemizleIstek(BaseModel):
+    is_id: str = Field(..., pattern="^[a-f0-9]{12}$")
+    seviye: str = Field("tehlikeli", pattern="^(tehlikeli|hepsi)$")
+
+
+@app.post("/api/sistem/temizle", dependencies=[Depends(yetki)])
+def temizle(istek: TemizleIstek) -> dict:
+    """Taramada bulunan (tehlikeli ya da tüm riskli) dosyaları tek seferde karantinaya alır."""
+    d = sistem_tarama.durum(istek.is_id)
+    if d is None:
+        raise HTTPException(status_code=404, detail="Tarama bulunamadı")
+    alinan, hatalar = 0, []
+    for b in sistem_tarama._isler[istek.is_id]["bulgular"]:
+        if b["tur"] != "dosya" or b.get("karantina") or b.get("silindi"):
+            continue
+        if istek.seviye == "tehlikeli" and b["seviye"] != "tehlikeli":
+            continue
+        try:
+            b["karantina"] = karantina.al(b["yol"], b.get("sha256"), b["nedenler"])["id"]
+            alinan += 1
+        except (FileNotFoundError, ValueError, PermissionError, OSError) as e:
+            hatalar.append({"yol": b["yol"], "hata": str(e)})
+    return {"karantinaya_alinan": alinan, "hatalar": hatalar}
+
+
 @app.get("/api/karantina", dependencies=[Depends(yetki)])
 def karantina_listesi() -> list:
     return karantina.listele()
+
+
+class OnayIstek(BaseModel):
+    onay: bool = Field(..., description="Kalıcı silme için true olmalı")
+
+
+@app.delete("/api/karantina/{kimlik}", dependencies=[Depends(yetki)])
+def karantina_kalici_sil(kimlik: str) -> dict:
+    try:
+        return karantina.kalici_sil(kimlik)
+    except (FileNotFoundError, ValueError, OSError) as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@app.post("/api/karantina/bosalt", dependencies=[Depends(yetki)])
+def karantina_bosalt(istek: OnayIstek) -> dict:
+    if not istek.onay:
+        raise HTTPException(status_code=400, detail="Onay gerekli")
+    return {"silinen": karantina.bosalt()}
+
+
+@app.post("/api/karantina/{kimlik}/goster", dependencies=[Depends(yetki)])
+def karantina_goster(kimlik: str) -> dict:
+    try:
+        karantina.klasorde_goster(str(karantina.karantina_dosyasi(kimlik)))
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    return {"ok": True}
 
 
 @app.post("/api/karantina/{kimlik}/geri-yukle", dependencies=[Depends(yetki)])

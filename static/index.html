@@ -111,6 +111,19 @@
   .secenek b { display: block; margin-bottom: 3px; }
   .secenek span { color: var(--muted); font-size: 13px; }
   .yol { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+  button.ana.tehlike { background: var(--bad); }
+  button.tehlike-cizgi { color: var(--bad); }
+  .islemler { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+  .islemler button { white-space: nowrap; font-size: 12px; padding: 5px 9px; }
+  /* Dar ekranda bulgular tablosu kartlara dönüşür: düğmeler yatay kaydırma olmadan görünür */
+  @media (max-width: 760px) {
+    table.kart-tablo thead { display: none; }
+    table.kart-tablo, table.kart-tablo tbody, table.kart-tablo tr, table.kart-tablo td { display: block; width: 100%; }
+    table.kart-tablo tr { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-bottom: 10px; }
+    table.kart-tablo td { border: 0; padding: 4px 0; max-width: none !important; min-width: 0 !important; text-align: left !important; }
+    table.kart-tablo td[data-ad]::before { content: attr(data-ad); display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+    table.kart-tablo .islemler { flex-direction: row; flex-wrap: wrap; }
+  }
 
   /* Rapor */
   .izgara { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
@@ -225,14 +238,22 @@
     </div>
     <div class="istat gizli" id="sistemOzet" style="margin-top:12px"></div>
     <div class="kucuk gizli" id="sistemKonum" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+    <div class="satir gizli" id="sistemTemizleSatir" style="margin-top:12px">
+      <button class="ana tehlike" id="sistemTemizle">Tehlikelilerin tümünü karantinaya al</button>
+      <button class="ikincil" id="sistemTemizleHepsi">Tüm riskli dosyaları karantinaya al</button>
+      <span class="kucuk">Karantina dosyaları silmez, çalıştırılamaz bir klasöre taşır; aşağıdan geri yüklenebilir ya da kalıcı silinebilir.</span>
+    </div>
     <div class="tablo-kap gizli" id="sistemTabloKap">
-      <table>
-        <thead><tr><th>Seviye</th><th class="sayi">Puan</th><th>Konum</th><th>Nedenler</th><th></th></tr></thead>
+      <table class="kart-tablo">
+        <thead><tr><th>Seviye</th><th class="sayi">Puan</th><th>Konum</th><th>Nedenler</th><th>İşlemler</th></tr></thead>
         <tbody id="sistemTablo"></tbody>
       </table>
     </div>
-    <h3 class="alt-baslik" style="margin-top:20px">Karantina</h3>
-    <div id="karantina" class="kucuk">Karantinada dosya yok.</div>
+    <div class="satir" style="justify-content:space-between;margin-top:20px">
+      <h3 class="alt-baslik" style="margin:0">Karantina</h3>
+      <button class="ikincil tehlike-cizgi gizli" id="karantinaBosalt">Karantinayı boşalt (kalıcı sil)</button>
+    </div>
+    <div id="karantina" class="kucuk" style="margin-top:8px">Karantinada dosya yok.</div>
   </section>
 
   <!-- TOPLU -->
@@ -345,7 +366,7 @@
 <script>
 (() => {
   const $ = (s) => document.querySelector(s);
-  const PANEL_SURUM = "0.3.0"; // kalkan/main.py içindeki SURUM ile aynı olmalı
+  const PANEL_SURUM = "0.4.0"; // kalkan/main.py içindeki SURUM ile aynı olmalı
   const SEVIYE = { guvenli: "Güvenli", supheli: "Şüpheli", tehlikeli: "Tehlikeli", hata: "Okunamadı" };
   const KATEGORI = { temiz: "Temiz", phishing: "Oltalama (phishing)", spam: "Spam", zararli: "Zararlı yazılım", supheli: "Şüpheli" };
   const TUR = { eposta: "E-posta", sms: "SMS", url: "Bağlantı", dosya: "Dosya", sayfa: "Sayfa", gorsel: "Görsel", baslangic: "Başlangıç öğesi" };
@@ -656,38 +677,118 @@
       <div><b style="color:var(--bad)">${sayi(d.tehlikeli)}</b><span>⛔ Tehlikeli</span></div>
       <div><b style="color:var(--warn)">${sayi(d.uyari - d.tehlikeli)}</b><span>⚠️ Şüpheli</span></div>`;
     const b = d.bulgular || [];
+    const bekleyen = b.filter((x) => x.tur === "dosya" && !x.karantina && !x.silindi);
+    const bekleyenTehlikeli = bekleyen.filter((x) => x.seviye === "tehlikeli");
+    $("#sistemTemizleSatir").classList.toggle("gizli", calisiyor || !bekleyen.length);
+    $("#sistemTemizle").textContent = `Tehlikelilerin tümünü karantinaya al (${bekleyenTehlikeli.length})`;
+    $("#sistemTemizle").disabled = !bekleyenTehlikeli.length;
+    $("#sistemTemizleHepsi").textContent = `Tüm riskli dosyaları karantinaya al (${bekleyen.length})`;
+
+    const islemler = (x) => {
+      if (x.karantina) return '<span class="kucuk">🔒 Karantinada</span>';
+      if (x.silindi) return '<span class="kucuk">🗑️ Çöp kutusunda</span>';
+      const no = Number(x.no);
+      return `<div class="islemler">
+        <button class="ikincil" data-islem="goster" data-no="${no}">📂 Klasörde göster</button>
+        ${x.tur === "dosya" ? `<button class="ikincil" data-islem="karantina" data-no="${no}">🔒 Karantinaya al</button>` : ""}
+        <button class="ikincil tehlike-cizgi" data-islem="cop" data-no="${no}">🗑️ ${x.tur === "baslangic" ? "Kaldır" : "Çöp kutusuna taşı"}</button>
+      </div>`;
+    };
     $("#sistemTablo").innerHTML = b.length ? b.map((x) => `<tr>
       <td><span class="etiket ${esc(x.seviye)}">${esc(SEVIYE[x.seviye])}</span></td>
-      <td class="sayi">${Number(x.puan) || 0}</td>
-      <td class="yol" style="min-width:200px;max-width:380px">${esc(ev(x.yol))}${x.tur === "baslangic" ? '<br><span class="kucuk">Açılışta başlayan öğe</span>' : ""}</td>
-      <td class="kucuk" style="min-width:260px">${x.nedenler.map(esc).join("<br>")}</td>
-      <td style="white-space:nowrap">${x.karantina ? '<span class="kucuk">Karantinada</span>'
-        : x.tur === "dosya" ? `<button class="ikincil" data-karantina="${Number(x.no)}">Karantinaya al</button>` : ""}</td></tr>`).join("")
+      <td class="sayi" data-ad="Puan">${Number(x.puan) || 0}</td>
+      <td class="yol" data-ad="Konum" style="min-width:200px;max-width:380px">${esc(ev(x.yol))}${x.tur === "baslangic" ? '<br><span class="kucuk">Açılışta başlayan öğe</span>' : ""}</td>
+      <td class="kucuk" data-ad="Nedenler" style="min-width:240px">${x.nedenler.map(esc).join("<br>")}</td>
+      <td>${islemler(x)}</td></tr>`).join("")
       : `<tr><td colspan="5" class="bos">${calisiyor ? "Taranıyor…" : "✅ Sorun bulunmadı"}</td></tr>`;
-    document.querySelectorAll("[data-karantina]").forEach((btn) => btn.onclick = async () => {
-      const x = b.find((y) => String(y.no) === btn.dataset.karantina);
-      if (!confirm(`Bu dosya karantinaya taşınacak ve çalıştırılamaz hâle gelecek:\n\n${ev(x.yol)}\n\nİstediğiniz zaman geri yükleyebilirsiniz. Devam edilsin mi?`)) return;
-      btn.disabled = true;
+
+    const govde = (x) => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_id: d.id, no: x.no }) });
+    document.querySelectorAll("[data-islem]").forEach((btn) => btn.onclick = async () => {
+      const x = b.find((y) => String(y.no) === btn.dataset.no);
+      const islem = btn.dataset.islem;
       try {
-        await api("/api/karantina", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_id: d.id, no: x.no }) });
-        x.karantina = true; sistemCiz(d); karantinaYukle();
-      } catch (e) { alert("Karantinaya alınamadı: " + e.message); btn.disabled = false; }
+        if (islem === "goster") {
+          await api("/api/sistem/goster", govde(x));
+          return;
+        }
+        if (islem === "karantina") {
+          if (!confirm(`Bu dosya karantinaya taşınacak ve çalıştırılamaz hâle gelecek:\n\n${ev(x.yol)}\n\nİstediğiniz zaman geri yükleyebilirsiniz. Devam edilsin mi?`)) return;
+          btn.disabled = true;
+          await api("/api/karantina", govde(x));
+          x.karantina = true;
+        }
+        if (islem === "cop") {
+          const ek = x.tur === "baslangic"
+            ? "\n\nBu açılışta başlayan bir öğe. Kaldırınca bir sonraki oturum açışınızda artık başlamaz; şu an çalışıyorsa bilgisayarı yeniden başlatın."
+            : "";
+          if (!confirm(`Bu dosya çöp kutusuna taşınacak:\n\n${ev(x.yol)}${ek}\n\nÇöp kutusu boşaltılana kadar oradan geri alabilirsiniz. Devam edilsin mi?`)) return;
+          btn.disabled = true;
+          const r = await api("/api/sistem/cop", govde(x));
+          x.silindi = r.nereye;
+        }
+        sistemCiz(d); karantinaYukle();
+      } catch (e) {
+        alert("İşlem yapılamadı: " + e.message);
+        btn.disabled = false;
+      }
     });
   }
+
+  async function sistemTemizle(seviye) {
+    if (!sistemId) return;
+    const metin = seviye === "tehlikeli" ? "tehlikeli bulunan tüm dosyalar" : "riskli bulunan tüm dosyalar (şüpheliler dahil)";
+    if (!confirm(`Bu taramada ${metin} karantinaya taşınacak ve çalıştırılamaz hâle gelecek.\n\nKarantinadan tek tek geri yükleyebilir ya da kalıcı silebilirsiniz. Devam edilsin mi?`)) return;
+    try {
+      const r = await api("/api/sistem/temizle", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_id: sistemId, seviye }) });
+      let mesaj = `${r.karantinaya_alinan} dosya karantinaya alındı.`;
+      if (r.hatalar.length) mesaj += `\n${r.hatalar.length} dosya alınamadı:\n` + r.hatalar.slice(0, 5).map((h) => `• ${ev(h.yol)}: ${h.hata}`).join("\n");
+      alert(mesaj);
+    } catch (e) { alert("Temizlenemedi: " + e.message); }
+    const d = (await api(`/api/sistem/durum?is_id=${sistemId}`)).is;
+    if (d) sistemCiz(d);
+    karantinaYukle();
+  }
+  $("#sistemTemizle").onclick = () => sistemTemizle("tehlikeli");
+  $("#sistemTemizleHepsi").onclick = () => sistemTemizle("hepsi");
+
+  $("#karantinaBosalt").onclick = async () => {
+    if (!confirm("Karantinadaki TÜM dosyalar kalıcı olarak silinecek. Bu işlem GERİ ALINAMAZ.\n\nDevam edilsin mi?")) return;
+    try {
+      const r = await api("/api/karantina/bosalt", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ onay: true }) });
+      alert(`${r.silinen} dosya kalıcı olarak silindi.`);
+    } catch (e) { alert("Boşaltılamadı: " + e.message); }
+    karantinaYukle();
+  };
 
   async function karantinaYukle() {
     try {
       const l = await api("/api/karantina");
-      $("#karantina").innerHTML = l.length ? `<table><thead><tr><th>Dosya</th><th>Alındığı yer</th><th>Tarih</th><th>Neden</th><th></th></tr></thead><tbody>${
-        l.map((k) => `<tr><td style="min-width:140px;word-break:break-all">${esc(k.ad)}</td><td class="yol" style="max-width:360px">${esc(ev(k.orijinal))}</td>
-          <td style="white-space:nowrap">${saat(k.zaman)}</td>
-          <td class="kucuk" style="min-width:200px">${esc((k.nedenler || [])[0] || "")}</td>
-          <td style="white-space:nowrap"><button class="ikincil" data-geri="${esc(k.id)}">Geri yükle</button></td></tr>`).join("")}</tbody></table>`
+      $("#karantinaBosalt").classList.toggle("gizli", !l.length);
+      $("#karantina").innerHTML = l.length ? `<table class="kart-tablo"><thead><tr><th>Dosya</th><th>Alındığı yer</th><th>Tarih</th><th>Neden</th><th>İşlemler</th></tr></thead><tbody>${
+        l.map((k) => `<tr><td style="min-width:140px;word-break:break-all"><b>${esc(k.ad)}</b></td><td class="yol" data-ad="Alındığı yer" style="max-width:340px">${esc(ev(k.orijinal))}</td>
+          <td data-ad="Tarih" style="white-space:nowrap">${saat(k.zaman)}</td>
+          <td class="kucuk" data-ad="Neden" style="min-width:180px">${esc((k.nedenler || [])[0] || "")}</td>
+          <td><div class="islemler">
+            <button class="ikincil" data-kislem="goster" data-id="${esc(k.id)}">📂 Klasörde göster</button>
+            <button class="ikincil" data-kislem="geri" data-id="${esc(k.id)}">↩️ Geri yükle</button>
+            <button class="ikincil tehlike-cizgi" data-kislem="sil" data-id="${esc(k.id)}">✖ Kalıcı sil</button>
+          </div></td></tr>`).join("")}</tbody></table>`
         : "Karantinada dosya yok.";
-      document.querySelectorAll("[data-geri]").forEach((btn) => btn.onclick = async () => {
-        if (!confirm("Dosya eski konumuna geri taşınacak. Kalkan onu tehlikeli bulmuştu. Emin misiniz?")) return;
-        try { await api(`/api/karantina/${btn.dataset.geri}/geri-yukle`, { method: "POST" }); karantinaYukle(); }
-        catch (e) { alert("Geri yüklenemedi: " + e.message); }
+      document.querySelectorAll("[data-kislem]").forEach((btn) => btn.onclick = async () => {
+        const id = btn.dataset.id, islem = btn.dataset.kislem;
+        const k = l.find((x) => x.id === id);
+        try {
+          if (islem === "goster") return void await api(`/api/karantina/${id}/goster`, { method: "POST" });
+          if (islem === "geri") {
+            if (!confirm("Dosya eski konumuna geri taşınacak. Kalkan onu tehlikeli bulmuştu. Emin misiniz?")) return;
+            await api(`/api/karantina/${id}/geri-yukle`, { method: "POST" });
+          }
+          if (islem === "sil") {
+            if (!confirm(`"${k.ad}" kalıcı olarak silinecek. Bu işlem GERİ ALINAMAZ.\n\nDevam edilsin mi?`)) return;
+            await api(`/api/karantina/${id}`, { method: "DELETE" });
+          }
+          karantinaYukle();
+        } catch (e) { alert("İşlem yapılamadı: " + e.message); }
       });
     } catch (_) {}
   }

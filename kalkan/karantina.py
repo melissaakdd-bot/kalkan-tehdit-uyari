@@ -9,8 +9,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import platform
 import shutil
 import stat
+import subprocess
 import time
 import uuid
 from pathlib import Path
@@ -64,6 +66,91 @@ def listele() -> List[Dict[str, Any]]:
         except (OSError, ValueError):
             continue
     return sorted(ogeler, key=lambda x: -x["zaman"])
+
+
+def _karantina_yolu(kimlik: str) -> Path:
+    if not kimlik.isalnum():
+        raise ValueError("Geçersiz kimlik")
+    return _dizin() / f"{kimlik}.kalkan"
+
+
+def kalici_sil(kimlik: str) -> Dict[str, Any]:
+    """Karantinadaki bir dosyayı geri dönüşü olmadan siler (yalnızca kullanıcı onayıyla çağrılır)."""
+    dosya = _karantina_yolu(kimlik)
+    meta_yol = dosya.with_suffix(".json")
+    if not meta_yol.exists():
+        raise FileNotFoundError("Karantinada böyle bir öğe yok")
+    meta = json.loads(meta_yol.read_text(encoding="utf-8"))
+    if dosya.exists():
+        os.chmod(dosya, 0o600)
+        dosya.unlink()
+    meta_yol.unlink()
+    return meta
+
+
+def bosalt() -> int:
+    sayi = 0
+    for meta in listele():
+        try:
+            kalici_sil(meta["id"])
+            sayi += 1
+        except (OSError, ValueError):
+            continue
+    return sayi
+
+
+def karantina_dosyasi(kimlik: str) -> Path:
+    dosya = _karantina_yolu(kimlik)
+    if not dosya.exists():
+        raise FileNotFoundError("Karantinada böyle bir öğe yok")
+    return dosya
+
+
+def cop_kutusuna_tasi(yol: str, beklenen_sha256: Optional[str] = None) -> str:
+    """Dosyayı işletim sisteminin çöp kutusuna taşır; kullanıcı oradan geri alabilir.
+
+    macOS'ta Finder üzerinden taşınır (Finder'ın "Geri Koy" seçeneği çalışsın diye); olmazsa ~/.Trash'e taşınır.
+    """
+    kaynak = Path(yol)
+    if kaynak.is_symlink() or not kaynak.is_file():
+        raise FileNotFoundError("Dosya bulunamadı ya da taşınmış")
+    if beklenen_sha256 and _sha256(kaynak) != beklenen_sha256:
+        raise ValueError("Dosya taramadan sonra değişmiş; güvenlik için taşınmadı. Yeniden tarayın.")
+    sistem = platform.system()
+    if sistem == "Darwin":
+        betik = 'on run argv\ntell application "Finder" to delete (POSIX file (item 1 of argv) as alias)\nend run'
+        p = subprocess.run(["osascript", "-e", betik, str(kaynak)], capture_output=True, text=True, timeout=30)
+        if p.returncode == 0 and not kaynak.exists():
+            return "Çöp Kutusu"
+        cop = Path.home() / ".Trash"
+    elif sistem == "Linux" and shutil.which("gio"):
+        p = subprocess.run(["gio", "trash", str(kaynak)], capture_output=True, text=True, timeout=30)
+        if p.returncode == 0:
+            return "Çöp Kutusu"
+        cop = Path.home() / ".local" / "share" / "Trash" / "files"
+    else:
+        raise OSError("Bu işletim sisteminde çöp kutusuna taşıma desteklenmiyor; karantinayı kullanın")
+    cop.mkdir(parents=True, exist_ok=True)
+    hedef = cop / kaynak.name
+    if hedef.exists():
+        hedef = cop / f"{kaynak.stem} {time.strftime('%H.%M.%S')}{kaynak.suffix}"
+    shutil.move(str(kaynak), str(hedef))
+    return str(cop)
+
+
+def klasorde_goster(yol: str) -> None:
+    """Dosyayı dosya yöneticisinde seçili olarak açar (Finder / Explorer / varsayılan dosya yöneticisi)."""
+    p = Path(yol)
+    if not p.exists():
+        raise FileNotFoundError("Dosya artık bu konumda değil")
+    sistem = platform.system()
+    if sistem == "Darwin":
+        komut = ["open", "-R", str(p)]
+    elif sistem == "Windows":
+        komut = ["explorer", f"/select,{p}"]
+    else:
+        komut = ["xdg-open", str(p.parent)]
+    subprocess.run(komut, timeout=15, check=False)  # liste biçimi: kabuk yorumlamaz, yol enjeksiyon riski yok
 
 
 def geri_yukle(kimlik: str) -> Dict[str, Any]:

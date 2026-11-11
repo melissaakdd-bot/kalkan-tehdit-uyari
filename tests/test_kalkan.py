@@ -239,6 +239,51 @@ class SistemTaramaTest(unittest.TestCase):
         self.assertTrue(os.path.exists(b["yol"]))
         self.assertEqual(karantina.listele(), [])
 
+    def test_karantina_kalici_silme_ve_bosaltma(self):
+        from kalkan import karantina
+        yollar = []
+        for i in range(3):
+            y = os.path.join(self.d, f"z{i}.exe")
+            with open(y, "wb") as f:
+                f.write(b"MZ" + bytes([i]) * 50)
+            yollar.append(y)
+        metalar = [karantina.al(y, None, ["test"]) for y in yollar]
+        karantina.kalici_sil(metalar[0]["id"])
+        self.assertEqual(len(karantina.listele()), 2)
+        self.assertFalse(any(p.name.startswith(metalar[0]["id"]) for p in karantina._dizin().iterdir()))
+        self.assertEqual(karantina.bosalt(), 2)
+        self.assertEqual(list(karantina._dizin().iterdir()), [])
+        with self.assertRaises(ValueError):
+            karantina.kalici_sil("../../etc")  # yol kaçışı denemesi
+
+    def test_cop_kutusuna_tasima(self):
+        # Gerçek Finder'ı tetiklememek için osascript başarısız sayılır, ev klasörü geçici klasöre yönlendirilir
+        from pathlib import Path
+        from unittest import mock
+        from kalkan import karantina
+        y = os.path.join(self.d, "kotu.pdf.exe")
+        with open(y, "wb") as f:
+            f.write(b"MZ" + b"\0" * 50)
+        sahte_ev = Path(self.d) / "ev"
+        with mock.patch.object(karantina.platform, "system", return_value="Darwin"), \
+             mock.patch.object(karantina.subprocess, "run", return_value=mock.Mock(returncode=1)), \
+             mock.patch.object(karantina.Path, "home", return_value=sahte_ev):
+            nereye = karantina.cop_kutusuna_tasi(y)
+        self.assertFalse(os.path.exists(y))
+        self.assertTrue((sahte_ev / ".Trash" / "kotu.pdf.exe").exists())
+        self.assertIn(".Trash", nereye)
+
+    def test_klasorde_goster_kabuk_kullanmaz(self):
+        from unittest import mock
+        from kalkan import karantina
+        y = os.path.join(self.d, "a; rm -rf ~.exe")  # kabuk enjeksiyonu denemesi: ad olduğu gibi tek argüman kalmalı
+        open(y, "wb").close()
+        with mock.patch.object(karantina.platform, "system", return_value="Darwin"), \
+             mock.patch.object(karantina.subprocess, "run") as calis:
+            karantina.klasorde_goster(y)
+        self.assertEqual(calis.call_args[0][0], ["open", "-R", y])
+        self.assertNotIn("shell", calis.call_args[1])
+
     def test_degisen_dosya_karantinaya_alinmaz(self):
         from kalkan import karantina
         yol = os.path.join(self.d, "a.exe")
@@ -268,6 +313,25 @@ class SistemTaramaTest(unittest.TestCase):
         # Gerçek PDF'lerde sıkıştırılmış veride rastgele "IeX" yanlış alarm üretiyordu
         s = dosya_analiz(b"%PDF-1.7\nstream\x89IeX\x02\x91endstream", "belge.pdf", baglam="sistem")
         self.assertEqual(s.seviye, "guvenli")
+
+
+class BaskaSiteKorumaTest(unittest.TestCase):
+    def test_dis_siteden_gelen_degisiklik_istegi_reddedilir(self):
+        from fastapi.testclient import TestClient
+        from kalkan.main import app
+        with TestClient(app) as c:
+            govde = {"onay": True}
+            r = c.post("/api/karantina/bosalt", json=govde, headers={"Origin": "https://kotu-site.example"})
+            self.assertEqual(r.status_code, 403)
+            r = c.post("/api/karantina/bosalt", json=govde, headers={"Origin": "null"})
+            self.assertEqual(r.status_code, 403)
+            # Panelin kendisi, Chrome eklentisi ve Origin göndermeyen yerel araçlar (curl) kabul edilir
+            self.assertEqual(c.post("/api/karantina/bosalt", json=govde, headers={"Origin": "http://testserver"}).status_code, 200)
+            self.assertEqual(c.post("/api/tara/url", json={"url": "https://a.com"},
+                                    headers={"Origin": "chrome-extension://abcdef"}).status_code, 200)
+            self.assertEqual(c.post("/api/tara/url", json={"url": "https://a.com"}).status_code, 200)
+            # Okuma istekleri etkilenmez
+            self.assertEqual(c.get("/api/durum", headers={"Origin": "https://kotu-site.example"}).status_code, 200)
 
 
 class LlmBirlestirmeTest(unittest.TestCase):

@@ -81,7 +81,17 @@ Panelde **Bilgisayar** bölümünden ya da komut satırından:
 - **Akıllı eleme:** Her dosyaya adı ve ilk 16 baytıyla bakılır. Derin incelemeye yalnızca program, betik, arşiv, Office ve PDF dosyaları ile türü uzantısına uymayan dosyalar girer (ör. `.jpg` adlı program). Bu bilgisayardaki hızlı tarama 7.817 dosyaya 2,5 saniyede baktı.
 - **Açılışta başlayan programlar:** macOS LaunchAgent/LaunchDaemon ve Linux autostart öğeleri ayrıca incelenir. İnternetten indirip kabukta çalıştıran komutlar, geçici ya da gizli klasörden başlatılan programlar ve kullanıcı klasöründeki `com.apple.` taklitleri işaretlenir.
 - **Atlananlar:** `node_modules`, `.venv`, `.git`, önbellekler ve `.app` paketlerinin içi. iCloud'da duran (bilgisayara indirilmemiş) dosyalar okunmaz, çünkü okumak onları buluttan indirtir.
-- **Salt okunur:** Kalkan hiçbir dosyayı kendiliğinden silmez ya da değiştirmez. **Karantinaya al** düğmesi dosyayı `~/.kalkan/karantina` klasörüne taşır ve çalıştırma iznini kaldırır. Dosya tarandıktan sonra değiştiyse taşınmaz. **Geri yükle** dosyayı eski yerine koyar.
+- **Salt okunur:** Kalkan hiçbir dosyayı kendiliğinden silmez ya da değiştirmez. Her işlem sizin tıklamanız ve onayınızla yapılır.
+- **Bulunan her dosya için:**
+  - **Klasörde göster:** Dosyayı Finder'da (Windows'ta Gezgin'de) seçili açar.
+  - **Karantinaya al:** Dosyayı `~/.kalkan/karantina` klasörüne taşır ve çalıştırma iznini kaldırır.
+  - **Çöp kutusuna taşı:** Dosyayı sistemin çöp kutusuna taşır. macOS'ta Finder'ın "Geri Koy" seçeneğiyle geri alınabilir. İlk kullanımda macOS, Finder'ı denetleme izni isteyebilir.
+- **Açılışta başlayan öğeler:** **Kaldır** düğmesi öğeyi çöp kutusuna taşır. Program bir sonraki oturum açışta başlamaz. `/Library` altındaki sistem öğeleri yönetici izni gerektirir, bunlar için Kalkan hata verir.
+- **Toplu temizleme:** **Tehlikelilerin tümünü karantinaya al** ya da **Tüm riskli dosyaları karantinaya al** düğmeleri bir taramanın bulduklarını tek seferde karantinaya alır.
+- **Karantinada:** **Klasörde göster**, **Geri yükle** (dosyayı eski yerine koyar), **Kalıcı sil** ve **Karantinayı boşalt**. Son ikisi geri alınamaz, bu yüzden açık onay ister.
+- **Güvenlik:**
+  - Dosya taramadan sonra değiştiyse taşınmaz ya da silinmez.
+  - Sunucu, başka bir web sitesinden gelen değişiklik isteklerini reddeder. Böylece kötü niyetli bir sayfa arka planda karantinayı boşaltamaz ya da zararlıyı geri yükletemez.
 - **Gizlilik:** Sistem taramasında hash'ler VirusTotal'e ve içerik Claude'a gönderilmez. Temiz dosyalar kaydedilmez.
 - **macOS izinleri:** Çok sayıda konuma "erişilemedi" deniyorsa Sistem Ayarları → Gizlilik ve Güvenlik → Tam Disk Erişimi'nden Kalkan'ı başlattığınız uygulamaya (ör. Terminal) izin verebilirsiniz.
 
