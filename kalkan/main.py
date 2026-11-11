@@ -24,6 +24,9 @@ from .ml import url_model
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 STATIC = Path(__file__).resolve().parent.parent / "static"
+# Panel (static/index.html) beklediği sürümü bilir; sunucu eski kodla çalışıyorsa uyarı gösterir.
+# Uç nokta eklendiğinde ya da değiştiğinde ikisi birlikte artırılır.
+SURUM = "0.3.0"
 
 
 @asynccontextmanager
@@ -91,7 +94,7 @@ def panel() -> FileResponse:
 @app.get("/api/durum")
 def durum() -> dict:
     return {
-        "surum": "0.2.0",
+        "surum": SURUM,
         "llm": config.LLM_ENABLED,
         "virustotal": bool(config.VIRUSTOTAL_API_KEY),
         "webhook": bool(config.ALERT_WEBHOOK_URL),

@@ -156,6 +156,7 @@
   </nav>
   <div class="durum" id="durum"></div>
 </header>
+<div id="surumUyari" class="gizli" role="alert" style="background:var(--warn-bg);color:var(--ink);border-bottom:1px solid var(--line);padding:10px 24px;font-size:14px"></div>
 
 <main id="ana">
   <!-- TARA -->
@@ -344,6 +345,7 @@
 <script>
 (() => {
   const $ = (s) => document.querySelector(s);
+  const PANEL_SURUM = "0.3.0"; // kalkan/main.py içindeki SURUM ile aynı olmalı
   const SEVIYE = { guvenli: "Güvenli", supheli: "Şüpheli", tehlikeli: "Tehlikeli", hata: "Okunamadı" };
   const KATEGORI = { temiz: "Temiz", phishing: "Oltalama (phishing)", spam: "Spam", zararli: "Zararlı yazılım", supheli: "Şüpheli" };
   const TUR = { eposta: "E-posta", sms: "SMS", url: "Bağlantı", dosya: "Dosya", sayfa: "Sayfa", gorsel: "Görsel", baslangic: "Başlangıç öğesi" };
@@ -371,6 +373,7 @@
     if (!r.ok) {
       let m = r.statusText;
       try { const j = await r.json(); m = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail); } catch (_) {}
+      if (r.status === 404 && m === "Not Found") m = "Sunucu bu özelliği tanımıyor; eski sürümle çalışıyor olabilir. Sunucuyu yeniden başlatın.";
       throw new Error(m);
     }
     return secenek.metin ? r.blob() : r.json();
@@ -644,7 +647,7 @@
     const durumYazi = { calisiyor: "Taranıyor", bitti: "Tamamlandı", iptal: "Durduruldu", hata: "Hata" }[d.durum] || d.durum;
     let bilgi = `${SISTEM_TUR[d.tur] || d.tur} · ${durumYazi} · ${sure} sn`;
     if (d.bulutta) bilgi += ` · iCloud'daki ${sayi(d.bulutta)} dosya indirilmeden atlandı`;
-    if (d.erisilemeyen > 20) bilgi += ` · ${sayi(d.erisilemeyen)} konuma erişilemedi (macOS'ta Terminal'e "Tam Disk Erişimi" verilebilir)`;
+    if (d.erisilemeyen > 0) bilgi += ` · ⚠️ ${sayi(d.erisilemeyen)} klasöre erişilemedi, bu klasörler taranmadı (macOS: Sistem Ayarları → Gizlilik ve Güvenlik → Tam Disk Erişimi'nden Kalkan'ı başlattığınız uygulamaya, ör. Terminal'e izin verin)`;
     if (d.hata) bilgi += " · " + d.hata;
     $("#sistemBilgi").textContent = bilgi;
     $("#sistemOzet").innerHTML = `
@@ -886,6 +889,14 @@
   async function durumYukle() {
     const d = await api("/api/durum");
     if (d.token_gerekli && !token) tokenSor();
+    // Panel dosyası her istekte diskten okunur, Python kodu ise sunucu açılırken yüklenir. Kod güncellenip
+    // sunucu yeniden başlatılmazsa yeni bölümler "Not Found" alır; bunu sessiz bırakmadan söyleriz.
+    if (d.surum !== PANEL_SURUM) {
+      const u = $("#surumUyari");
+      u.textContent = `Kalkan sunucusu eski bir sürümle çalışıyor (sunucu: ${d.surum || "bilinmiyor"}, panel: ${PANEL_SURUM}). ` +
+        "Bazı bölümler çalışmayacak. Sunucuyu çalıştırdığınız terminalde Ctrl+C ile durdurup yeniden başlatın.";
+      u.classList.remove("gizli");
+    }
     const c = (ad, acik, ip) => `<span class="chip ${acik ? "acik" : ""}" title="${esc(ip)}">${acik ? "●" : "○"} ${esc(ad)}</span>`;
     $("#durum").innerHTML = [
       c("Kural + ML", true, "Her zaman açık"),
