@@ -88,7 +88,8 @@ Panelde **Bilgisayar** bölümünden ya da komut satırından:
   - **Karantinaya al:** Dosyayı `~/.kalkan/karantina` klasörüne taşır ve çalıştırma iznini kaldırır.
   - **Çöp kutusuna taşı:** Dosyayı sistemin çöp kutusuna taşır. macOS'ta Finder'ın "Geri Koy" seçeneğiyle geri alınabilir. İlk kullanımda macOS, Finder'ı denetleme izni isteyebilir.
 - **Açılışta başlayan öğeler:** **Kaldır** düğmesi öğeyi çöp kutusuna taşır. Program bir sonraki oturum açışta başlamaz. `/Library` altındaki sistem öğeleri yönetici izni gerektirir, bunlar için Kalkan hata verir.
-- **Toplu temizleme:** **Tehlikelilerin tümünü karantinaya al** ya da **Tüm riskli dosyaları karantinaya al** düğmeleri bir taramanın bulduklarını tek seferde karantinaya alır.
+- **Toplu temizleme:** **Tehlikelilerin tümünü karantinaya al** düğmesi bir taramanın tehlikeli bulduklarını tek seferde karantinaya alır. Şüpheli dosyalar toplu işleme dahil edilmez, çünkü yanlış alarm olabilirler. Onları **Klasörde göster** ile inceleyip tek tek karar verin.
+- **Uygulama veri klasörleri:** `~/Library` ve `~/.vscode` gibi gizli klasörlerdeki betik dosyaları (`.js`, `.sh`, `.py` …) derin incelenmez. Bu klasörlerde binlerce meşru betik bulunur. Programlar, arşivler ve tür gizlemeleri yine incelenir.
 - **Karantinada:** **Klasörde göster**, **Geri yükle** (dosyayı eski yerine koyar), **Kalıcı sil** ve **Karantinayı boşalt**. Son ikisi geri alınamaz, bu yüzden açık onay ister.
 - **Güvenlik:**
   - Dosya taramadan sonra değiştiyse taşınmaz ya da silinmez.

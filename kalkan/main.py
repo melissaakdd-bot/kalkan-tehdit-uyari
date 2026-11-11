@@ -282,7 +282,8 @@ def cop_kutusuna(istek: KarantinaIstek) -> dict:
 
 class TemizleIstek(BaseModel):
     is_id: str = Field(..., pattern="^[a-f0-9]{12}$")
-    seviye: str = Field("tehlikeli", pattern="^(tehlikeli|hepsi)$")
+    # Toplu işlem yalnızca tehlikeliler içindir: şüpheliler yanlış alarm olabilir, tek tek karar verilmeli
+    seviye: str = Field("tehlikeli", pattern="^tehlikeli$")
 
 
 @app.post("/api/sistem/temizle", dependencies=[Depends(yetki)])

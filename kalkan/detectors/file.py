@@ -30,6 +30,10 @@ TEHLIKELI_UZANTILAR = {
     "msi", "msp", "lnk", "dll", "cpl", "jar", "apk", "app", "dmg", "pkg", "sh", "iso", "img", "vhd",
     "reg", "chm", "inf", "scf", "one",
 }
+ARSIV_TEHLIKELI = {
+    "exe", "scr", "com", "pif", "bat", "cmd", "vbs", "vbe", "jse", "wsf", "wsh", "hta", "ps1", "msi", "lnk", "cpl",
+    "reg", "scf", "iso", "img", "vhd",
+}
 MAKROLU_UZANTILAR = {"docm", "xlsm", "pptm", "dotm", "xltm", "xlam", "ppam"}
 BELGE_UZANTILARI = {"pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "jpg", "jpeg", "png", "gif", "csv", "rtf"}
 
@@ -57,7 +61,9 @@ SCRIPT_DESENLERI = [
     (rb"(?i)powershell(\.exe)?\s+.*-(e|enc|encodedcommand)\s", "Kodlanmış PowerShell komutu"),
     # Çıplak "iex" sıkıştırılmış veride rastgele oluşuyordu (gerçek PDF'lerde yanlış alarm); kullanım biçimi aranır
     (rb"(?i)\binvoke-expression\b|\biex\s*\(|\|\s*iex\b", "PowerShell Invoke-Expression"),
-    (rb"(?i)downloadstring|downloadfile|invoke-webrequest|net\.webclient", "İnternetten kod indirme"),
+    # Yalnızca PowerShell'e özgü kullanım: çıplak "downloadFile" JavaScript'te sıradan bir fonksiyon adıdır
+    # (gerçek bir Mac'te TikTok LIVE Studio önbelleğindeki 133 .js dosyası bu yüzden yanlış alarm almıştı)
+    (rb"(?i)net\.webclient\)?\s*\.\s*download(string|file)|invoke-webrequest|start-bitstransfer", "İnternetten kod indirme"),
     (rb"(?i)frombase64string", "Base64 ile gizlenmiş yük"),
     (rb"(?i)wscript\.shell|shell\.application", "Windows Script Host ile komut çalıştırma"),
     (rb"(?i)certutil(\.exe)?\s+.*-(decode|urlcache)", "certutil ile indirme/çözme"),
@@ -146,7 +152,9 @@ def _zip_incele(veri: bytes, bulgular: List[Bulgu]) -> None:
         bulgular.append(Bulgu("sifreli_arsiv", "Şifreli arşiv: antivirüs taramasını atlatmak için sık kullanılır.", 35, "zararli"))
     if any(n.lower().endswith("vbaproject.bin") for n in adlar):
         bulgular.append(Bulgu("office_makro", "Office belgesi VBA makrosu içeriyor.", 45, "zararli"))
-    icteki_tehlikeli = [n for n in adlar if (_uzantilar(os.path.basename(n)) or [""])[-1] in TEHLIKELI_UZANTILAR]
+    # .js / .jar / .sh gibi dosyalar yazılım paketlerinde çok yaygın; yalnızca kullanıcıyı kandırmak için
+    # arşive konan Windows çalıştırılabilirleri ve kısayollar aranır
+    icteki_tehlikeli = [n for n in adlar if (_uzantilar(os.path.basename(n)) or [""])[-1] in ARSIV_TEHLIKELI]
     if icteki_tehlikeli:
         bulgular.append(Bulgu(
             "arsivde_calistirilabilir",

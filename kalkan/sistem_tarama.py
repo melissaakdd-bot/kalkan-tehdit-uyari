@@ -87,6 +87,18 @@ def _ilk_baytlar(yol: Path) -> bytes:
         return f.read(16)
 
 
+BETIK_UZANTILARI = {"js", "jse", "mjs", "cjs", "vbs", "vbe", "ps1", "sh", "command", "bat", "cmd", "hta", "wsf", "wsh", "scpt", "py"}
+
+
+def _uygulama_verisi_mi(yol: Path) -> bool:
+    try:
+        goreli = yol.relative_to(EV)
+    except ValueError:
+        return False
+    ilk = goreli.parts[0] if goreli.parts else ""
+    return ilk == "Library" or ilk.startswith(".")
+
+
 def _derin_mi(yol: Path) -> bool:
     """Ucuz ön eleme: ad ve ilk 16 bayt."""
     ad = yol.name.lower()
@@ -95,6 +107,11 @@ def _derin_mi(yol: Path) -> bool:
     if "‮" in yol.name or re.search(r"\.(pdf|docx?|xlsx?|jpe?g|png|txt)\.[a-z0-9]{2,4}$", ad):
         return True
     son = ad.rsplit(".", 1)[-1] if "." in ad else ""
+    # Uygulama veri klasörlerinde (~/Library, ~/.vscode gibi gizli klasörler) binlerce meşru betik ve önbellek
+    # dosyası bulunur; bunlar derin incelenmez. Programlar, arşivler ve tür gizlemeleri yine incelenir;
+    # açılışta başlayan öğeler ayrıca kendi kurallarıyla denetlenir.
+    if son in BETIK_UZANTILARI and _uygulama_verisi_mi(yol):
+        return False
     if son in DERIN_UZANTILAR:
         return True
     try:

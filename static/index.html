@@ -241,8 +241,8 @@
     <div class="kucuk gizli" id="sistemKonum" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
     <div class="satir gizli" id="sistemTemizleSatir" style="margin-top:12px">
       <button class="ana tehlike" id="sistemTemizle">Tehlikelilerin tümünü karantinaya al</button>
-      <button class="ikincil" id="sistemTemizleHepsi">Tüm riskli dosyaları karantinaya al</button>
-      <span class="kucuk">Karantina dosyaları silmez, çalıştırılamaz bir klasöre taşır; aşağıdan geri yüklenebilir ya da kalıcı silinebilir.</span>
+      <span class="kucuk">Yalnızca <b>tehlikeli</b> dosyalar toplu karantinaya alınır. Şüpheli dosyalar zararsız da olabilir;
+        onları "Klasörde göster" ile inceleyip tek tek karar verin. Karantina dosyaları silmez, geri yüklenebilir.</span>
     </div>
     <div class="tablo-kap gizli" id="sistemTabloKap">
       <table class="kart-tablo">
@@ -667,7 +667,10 @@
       $("#sistemSon").textContent = (s
         ? `Son tamamlanan tarama: ${saat(s.zaman)} · ${SISTEM_TUR[s.tur] || s.tur} · ${sayi(s.taranan)} dosya · ${s.uyari ? s.uyari + " uyarı" : "sorun bulunmadı"}. `
         : "Bu bilgisayar henüz taranmadı. ") + oto;
-      if (d.is) { sistemId = d.is.id; sistemCiz(d.is); if (d.is.durum === "calisiyor") sistemIzle(); }
+      if (d.is) {
+        sistemId = d.is.id; sistemCiz(d.is);
+        if (d.is.durum === "calisiyor" && !sistemZaman) sistemIzle();
+      }
     } catch (e) { $("#sistemSon").textContent = "Durum alınamadı: " + e.message; }
     karantinaYukle();
   }
@@ -685,14 +688,17 @@
   });
   $("#sistemIptal").onclick = () => sistemId && api(`/api/sistem/${sistemId}/iptal`, { method: "POST" });
 
+  let sistemIzleNo = 0;
   async function sistemIzle() {
     clearTimeout(sistemZaman);
+    const no = ++sistemIzleNo; // yeni bir izleme başlayınca eskisi kendini durdurur
     try {
       const d = (await api(`/api/sistem/durum?is_id=${sistemId}`)).is;
       if (!d) return;
+      if (no !== sistemIzleNo) return;
       sistemCiz(d);
       if (d.durum === "calisiyor") sistemZaman = setTimeout(sistemIzle, 700);
-      else sistemYukle();
+      else { sistemZaman = null; sistemYukle(); }
     } catch (e) { $("#sistemBilgi").textContent = "Hata: " + e.message; }
   }
 
@@ -718,10 +724,8 @@
     const b = d.bulgular || [];
     const bekleyen = b.filter((x) => x.tur === "dosya" && !x.karantina && !x.silindi);
     const bekleyenTehlikeli = bekleyen.filter((x) => x.seviye === "tehlikeli");
-    $("#sistemTemizleSatir").classList.toggle("gizli", calisiyor || !bekleyen.length);
+    $("#sistemTemizleSatir").classList.toggle("gizli", calisiyor || !bekleyenTehlikeli.length);
     $("#sistemTemizle").textContent = `Tehlikelilerin tümünü karantinaya al (${bekleyenTehlikeli.length})`;
-    $("#sistemTemizle").disabled = !bekleyenTehlikeli.length;
-    $("#sistemTemizleHepsi").textContent = `Tüm riskli dosyaları karantinaya al (${bekleyen.length})`;
 
     const islemler = (x) => {
       if (x.karantina) return '<span class="kucuk">🔒 Karantinada</span>';
@@ -775,7 +779,7 @@
 
   async function sistemTemizle(seviye) {
     if (!sistemId) return;
-    const metin = seviye === "tehlikeli" ? "tehlikeli bulunan tüm dosyalar" : "riskli bulunan tüm dosyalar (şüpheliler dahil)";
+    const metin = "tehlikeli bulunan tüm dosyalar";
     if (!confirm(`Bu taramada ${metin} karantinaya taşınacak ve çalıştırılamaz hâle gelecek.\n\nKarantinadan tek tek geri yükleyebilir ya da kalıcı silebilirsiniz. Devam edilsin mi?`)) return;
     try {
       const r = await api("/api/sistem/temizle", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_id: sistemId, seviye }) });
@@ -788,7 +792,6 @@
     karantinaYukle();
   }
   $("#sistemTemizle").onclick = () => sistemTemizle("tehlikeli");
-  $("#sistemTemizleHepsi").onclick = () => sistemTemizle("hepsi");
 
   $("#karantinaBosalt").onclick = async () => {
     if (!confirm("Karantinadaki TÜM dosyalar kalıcı olarak silinecek. Bu işlem GERİ ALINAMAZ.\n\nDevam edilsin mi?")) return;
