@@ -7,6 +7,7 @@ from email import policy
 from email.utils import parseaddr
 from typing import Dict, List, Optional, Tuple
 
+from .. import config
 from ..ml import model as ml_model
 from ..models import Bulgu, Sonuc, sonuclandir
 from .url import RESMI_ALANLAR, _kok_alan, url_analiz, urlleri_bul
@@ -117,6 +118,8 @@ def _eposta_ayristir(ham: str) -> Dict[str, object]:
         "return_path": str(msg.get("Return-Path", "")),
         "subject": str(msg.get("Subject", "")),
         "auth": " ".join(str(v) for v in (msg.get_all("Authentication-Results") or [])),
+        # Posta listeleri Reply-To'yu meşru olarak listenin adresine çevirir
+        "liste": bool(msg.get("List-Id") or msg.get("List-Post") or msg.get("List-Unsubscribe")),
         "govde": "\n".join(govde_parcalari) if govde_parcalari else str(msg.get_payload() or ""),
         "ekler": ekler,
     }
@@ -129,8 +132,9 @@ def _baslik_bulgulari(p: Dict[str, object]) -> List[Bulgu]:
     _, yanit = parseaddr(str(p["reply_to"]))
     yanit_alan = yanit.split("@")[-1].lower() if "@" in yanit else ""
 
-    if gonderen_alan and yanit_alan and _kok_alan(gonderen_alan) != _kok_alan(yanit_alan):
-        bulgular.append(Bulgu("reply_to_farkli", f"Yanıt adresi ({yanit_alan}) gönderen alanından ({gonderen_alan}) farklı.", 30, "phishing"))
+    if gonderen_alan and yanit_alan and _kok_alan(gonderen_alan) != _kok_alan(yanit_alan) and not p.get("liste"):
+        # Tek başına zayıf sinyal: bülten servisleri de farklı yanıt adresi kullanır
+        bulgular.append(Bulgu("reply_to_farkli", f"Yanıt adresi ({yanit_alan}) gönderen alanından ({gonderen_alan}) farklı.", 15, "phishing"))
 
     auth = _norm(str(p["auth"]))
     for mekanizma in ("spf", "dkim", "dmarc"):
@@ -199,18 +203,23 @@ def metin_analiz(icerik: str, tur: str = "eposta", kaynak: str = "panel") -> Son
     urller = urlleri_bul(govde)
     url_sonuclari = [url_analiz(u, kaynak=kaynak) for u in urller[:30]]
     riskli_url = [u for u in url_sonuclari if u.seviye != "guvenli"]
+    talep_var = any(b.kod in ("kimlik_bilgisi", "odeme_talebi", "hesap_tehdidi") for b in bulgular)
     if riskli_url:
         en_kotu = max(riskli_url, key=lambda s: s.puan)
+        # Tehlikeli bir bağlantı mesajı tek başına alarma sokar; yalnızca şüpheli olan ise yarım ağırlıkla
+        # katılır ve ancak başka sinyallerle birleşirse uyarı üretir (meşru bültenlerde de bit.ly, blogspot vb. olur).
+        agirlik = min(en_kotu.puan, 85) if en_kotu.seviye == "tehlikeli" else en_kotu.puan // 2
         bulgular.append(Bulgu(
             "riskli_baglanti",
             f"{len(riskli_url)} şüpheli bağlantı; en riskli: {en_kotu.hedef} (puan {en_kotu.puan}).",
-            min(en_kotu.puan, 85), "phishing",
+            agirlik, "phishing",
         ))
-    elif urller and any(b.kod in ("kimlik_bilgisi", "odeme_talebi", "hesap_tehdidi") for b in bulgular):
+    if urller and talep_var:
         bulgular.append(Bulgu("baglanti_ve_talep", "Bağlantı ile birlikte bilgi ya da ödeme isteniyor.", 20, "phishing"))
 
-    # Marka adı geçip bağlantı resmî alana gitmiyorsa
-    if urller:
+    # Marka adına yazılıp bilgi/ödeme isteyen ama bağlantıları resmî alana gitmeyen mesaj.
+    # Talep şartı olmadan bu kural, markadan söz eden sıradan haber ve bültenlerde de tetikleniyordu.
+    if urller and (talep_var or any(b.kod == "aciliyet" for b in bulgular)):
         for marka, resmi in MARKA_ADLARI.items():
             if re.search(rf"\b{re.escape(marka)}\b", n):
                 hedefler = {u.ek.get("kok_alan") for u in url_sonuclari}
@@ -223,14 +232,36 @@ def metin_analiz(icerik: str, tur: str = "eposta", kaynak: str = "panel") -> Son
                 break
 
     sonuc = Sonuc(tur, _etiket(tur, konu, govde), bulgular=bulgular, kaynak=kaynak)
+    # ML yalnızca yüksek güvende ve açıklamalı bir bulgu olarak katılır (eşik gerçek veriyle seçildi,
+    # bkz. docs/DOGRULUK.md). Puan harmanlanmaz: zayıf kural sinyalleri ML ile birleşip alarma dönüşmesin.
     tahmin: Optional[Dict[str, object]] = ml_model.tahmin_et(govde)
-    ml_puan = None
     if tahmin:
         sonuc.ml = tahmin
-        ml_puan = 1 - float(tahmin["olasiliklar"].get("temiz", 0))  # type: ignore[union-attr]
+        olas = tahmin["olasiliklar"]  # type: ignore[assignment]
+        tehdit = 1 - float(olas.get("temiz", 0))  # type: ignore[union-attr]
+        if tehdit >= config.METIN_ML_ESIK:
+            tur_ml = "phishing" if olas.get("phishing", 0) >= olas.get("spam", 0) else "spam"  # type: ignore[union-attr]
+            bulgular.append(Bulgu(
+                "ml_metin",
+                f"Yapay zekâ modeli metni {'oltalama' if tur_ml == 'phishing' else 'spam'} örneklerine benzetiyor "
+                f"(olasılık %{tehdit * 100:.0f}).",
+                60 if tehdit >= 0.97 else 45, tur_ml,
+            ))
     sonuc.ek["baglantilar"] = [{"url": u.hedef, "puan": u.puan, "seviye": u.seviye} for u in url_sonuclari]
     sonuc.ek["ekler"] = [{"ad": e.hedef, "puan": e.puan, "seviye": e.seviye} for e in ek_sonuclari]
-    return sonuclandir(sonuc, ml_puan=ml_puan)
+    return sonuclandir(sonuc)
+
+
+def ml_metni(icerik: str, tur: str = "eposta") -> str:
+    """ML modelinin gördüğü metin: konu + gövde (başlıklar hariç).
+
+    Eğitimde de bu fonksiyon kullanılır; böylece model e-posta başlıklarındaki
+    veri setine özgü izleri (sunucu adları, tarih biçimleri) ezberleyemez.
+    """
+    if tur == "eposta" and _eposta_mi(icerik):
+        p = _eposta_ayristir(icerik)
+        return f"{p['subject']}\n{p['govde']}"
+    return icerik
 
 
 def _etiket(tur: str, konu: str, govde: str) -> str:

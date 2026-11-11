@@ -42,8 +42,10 @@ PANEL_TOKEN = os.getenv("KALKAN_TOKEN", "")
 SUPHELI_ESIK = int(os.getenv("KALKAN_SUPHELI_ESIK", "30"))
 TEHLIKELI_ESIK = int(os.getenv("KALKAN_TEHLIKELI_ESIK", "60"))
 
-# ML modeli kural sinyali olmadan tek başına uyarı üretebilsin mi? Kendi verinizle eğitip doğruladıktan sonra açın.
-ML_TEK_BASINA = _bool("KALKAN_ML_TEK_BASINA", False)
+# Metin modeli bu tehdit olasılığının üstünde bulgu ekler (testte %80 eşiğinde TR e-postada yanlış alarm %2,8)
+METIN_ML_ESIK = float(os.getenv("KALKAN_METIN_ML_ESIK", "0.8"))
+# URL modeli bu olasılığın üstünde açıklamalı bir bulgu ekler (testte %90 eşiğinde yanlış alarm %0,3)
+URL_ML_ESIK = float(os.getenv("KALKAN_URL_ML_ESIK", "0.9"))
 
 # Dosya yükleme sınırı
 MAX_DOSYA_MB = int(os.getenv("KALKAN_MAX_DOSYA_MB", "25"))

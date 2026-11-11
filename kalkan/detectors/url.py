@@ -10,6 +10,8 @@ import unicodedata
 from typing import List, Tuple
 from urllib.parse import urlsplit
 
+from .. import config
+from ..ml import url_model
 from ..models import Bulgu, Sonuc, sonuclandir
 
 # Taklit edilmesi sık görülen markaların resmî alan adları (kayıtlı kök alan).
@@ -71,6 +73,37 @@ MARKA_ANAHTARLARI = {
     "binance": ["binance.com"], "dhl": ["dhl.com"],
 }
 
+# Yaygın ve kurumsal olarak denetlenen alan adları: ML'den muaftır (kural motoru yine çalışır).
+# Elle derlenmiştir; lisans kısıtı olan hazır listeler (ör. Tranco) depoya konmamıştır.
+GUVENILIR_KOKLER = {
+    "google.com", "google.com.tr", "youtube.com", "gmail.com", "microsoft.com", "live.com", "office.com",
+    "microsoftonline.com", "outlook.com", "bing.com", "msn.com", "hotmail.com", "windows.com", "skype.com",
+    "xbox.com", "office365.com", "apple.com", "icloud.com", "amazon.com", "amazon.com.tr",
+    "facebook.com", "instagram.com", "whatsapp.com", "linkedin.com", "x.com", "twitter.com", "wikipedia.org",
+    "github.com", "gitlab.com", "stackoverflow.com", "python.org", "pypi.org", "mozilla.org", "reddit.com",
+    "netflix.com", "spotify.com", "zoom.us", "slack.com", "notion.so", "anthropic.com", "claude.ai", "claude.com",
+    "openai.com", "chatgpt.com", "cloudflare.com", "adobe.com", "paypal.com", "yahoo.com", "yandex.com",
+    "yandex.com.tr", "duckduckgo.com", "kaggle.com", "huggingface.co", "arxiv.org", "coursera.org", "udemy.com",
+    "medium.com", "bbc.com", "bbc.co.uk", "nytimes.com", "n11.com", "yemeksepeti.com", "getir.com",
+    "hurriyet.com.tr", "milliyet.com.tr", "sabah.com.tr", "sozcu.com.tr", "ntv.com.tr", "haberturk.com",
+    "cnnturk.com", "aa.com.tr", "trthaber.com", "eksisozluk.com", "yapayzekaokulum.com", "turkiye.gov.tr",
+}
+# Belge ile alınabilen uzantılar (nic.tr ve benzeri kayıt otoriteleri denetler)
+KORUMALI_EKLER = ("gov.tr", "edu.tr", "k12.tr", "bel.tr", "pol.tr", "tsk.tr", "gov", "mil", "edu")
+# Herkesin ücretsiz sayfa açabildiği servisler: alan adı güvenilir olsa da içerik saldırgana ait olabilir
+KULLANICI_ICERIK_KOKLERI = {
+    "firebaseapp.com", "web.app", "github.io", "netlify.app", "vercel.app", "pages.dev", "workers.dev", "r2.dev",
+    "herokuapp.com", "glitch.me", "repl.co", "replit.app", "blogspot.com", "wixsite.com", "weebly.com",
+    "webflow.io", "000webhostapp.com", "ngrok.io", "ngrok-free.app", "trycloudflare.com", "surge.sh",
+    "square.site", "godaddysites.com", "sharepoint.com", "azurewebsites.net", "appspot.com", "onrender.com",
+    "framer.app", "ipfs.io", "dweb.link", "gitbook.io", "mystrikingly.com", "jimdosite.com",
+}
+KULLANICI_ICERIK_HOSTLARI = {
+    "sites.google.com", "docs.google.com", "drive.google.com", "forms.gle", "storage.googleapis.com",
+    "firebasestorage.googleapis.com", "forms.office.com", "onedrive.live.com", "1drv.ms", "dropbox.com",
+    "dl.dropboxusercontent.com", "wetransfer.com", "we.tl",
+}
+
 KISALTICILAR = {
     "bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "buff.ly", "cutt.ly", "rebrand.ly",
     "shorturl.at", "rb.gy", "t.ly", "s.id", "tiny.cc", "bl.ink", "short.io", "v.gd",
@@ -101,8 +134,14 @@ URL_REGEX = re.compile(
       (?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,24})(?:/[^\s<>"'()]*)?
     )"""
 )
-# Sık görülen dosya adı uzantıları URL sanılmasın
-_DOSYA_UZANTILARI = {"pdf", "doc", "docx", "xls", "xlsx", "exe", "zip", "rar", "jpg", "png", "txt", "html"}
+# Şemasız yazılmış adreslerde (ör. "ptt-kargo.top") kabul edilen üst alanlar. Bu liste olmadan
+# "olması.Yukarıdaki" ya da "paket-1.0.rpm" gibi kelime ve dosya adları adres sanılıyordu.
+_BILINEN_TLD = {
+    "com", "net", "org", "info", "biz", "io", "co", "app", "dev", "ai", "me", "tv", "xyz", "top", "click",
+    "online", "site", "shop", "live", "store", "tech", "tk", "ml", "ga", "cf", "gq", "buzz", "rest", "icu",
+    "cyou", "sbs", "cfd", "lol", "monster", "quest", "support", "zip", "mov", "link", "club", "vip", "pro",
+    "gov", "edu", "tr", "uk", "de", "fr", "ru", "cn", "nl", "eu", "us", "ly", "gl", "cc", "ws", "su", "in",
+}
 
 # Görsel olarak harfe benzeyen rakamlar / karakterler
 _BENZER = str.maketrans({"0": "o", "1": "l", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "@": "a", "$": "s"})
@@ -113,8 +152,13 @@ def urlleri_bul(metin: str) -> List[str]:
     for m in URL_REGEX.finditer(metin or ""):
         u = m.group(1).rstrip(".,;:!?)]}'\"")
         if "://" not in u and not u.lower().startswith("www."):
-            son = u.split("/")[0].rsplit(".", 1)[-1].lower()
-            if son in _DOSYA_UZANTILARI or "@" in metin[max(0, m.start() - 1):m.start()]:
+            host = u.split("/")[0]
+            son = host.rsplit(".", 1)[-1]
+            if (
+                son not in _BILINEN_TLD  # büyük harfli ("NET.WORKS") ya da bilinmeyen uzantılar adres sayılmaz
+                or not host.isascii()
+                or "@" in metin[max(0, m.start() - 1):m.start()]  # e-posta adresinin alan kısmı
+            ):
                 continue
         if u not in bulunan:
             bulunan.append(u)
@@ -168,9 +212,11 @@ def url_analiz(ham_url: str, kaynak: str = "panel") -> Sonuc:
         return sonuclandir(sonuc)
 
     # 1) IP adresiyle doğrudan bağlantı
+    sonuc_ip = False
     try:
         ipaddress.ip_address(host.strip("[]"))
         bulgular.append(Bulgu("ip_host", "Alan adı yerine doğrudan IP adresi kullanılmış.", 45, "phishing"))
+        sonuc_ip = True
     except ValueError:
         pass
 
@@ -197,8 +243,22 @@ def url_analiz(ham_url: str, kaynak: str = "panel") -> Sonuc:
     if tld in SUPHELI_TLD:
         bulgular.append(Bulgu("supheli_tld", f".{tld} uzantısı kötüye kullanımda sık görülür.", 20, "phishing"))
 
-    # 6) Marka taklidi: markanın adı geçiyor ama resmî alan değil
-    resmi = _resmi_mi(kok)
+    # 6) Güven durumu
+    yalin_host = host[4:] if host.startswith("www.") else host
+    kullanici_icerigi = kok in KULLANICI_ICERIK_KOKLERI or yalin_host in KULLANICI_ICERIK_HOSTLARI
+    resmi = not kullanici_icerigi and (
+        _resmi_mi(kok) or kok in GUVENILIR_KOKLER
+        or any(host == e or host.endswith("." + e) for e in KORUMALI_EKLER)
+    )
+    sonuc.ek["guvenilir_alan"] = resmi
+    if kullanici_icerigi:
+        bulgular.append(Bulgu(
+            "kullanici_icerigi",
+            f"{yalin_host}: herkesin ücretsiz sayfa açabildiği bir servis; sahte giriş sayfaları için sık kullanılır.",
+            15, "phishing",
+        ))
+
+    # 7) Marka taklidi: markanın adı geçiyor ama resmî alan değil
     if not resmi:
         duz = host.replace(".", "-")
         benzer = duz.translate(_BENZER)
@@ -248,7 +308,8 @@ def url_analiz(ham_url: str, kaynak: str = "panel") -> Sonuc:
     if len(url) > 120:
         bulgular.append(Bulgu("uzun_url", "Bağlantı alışılmadık derecede uzun.", 10, "phishing"))
     if parca.scheme == "http" and not resmi and ham_url.lower().startswith("http://"):
-        bulgular.append(Bulgu("sifresiz", "Bağlantı şifresiz (http) bağlantı kullanıyor.", 10, "phishing"))
+        # Zayıf sinyal: eski ama meşru pek çok site hâlâ http kullanıyor
+        bulgular.append(Bulgu("sifresiz", "Bağlantı şifresiz (http) bağlantı kullanıyor.", 5, "phishing"))
     if parca.port and parca.port not in (80, 443):
         bulgular.append(Bulgu("standart_disi_port", f"Standart dışı port: {parca.port}.", 15, "phishing"))
 
@@ -260,6 +321,21 @@ def url_analiz(ham_url: str, kaynak: str = "panel") -> Sonuc:
         bulgular.append(Bulgu("dosya_indirme", "Bağlantı doğrudan çalıştırılabilir ya da arşiv dosyası indiriyor.", 40, "zararli"))
     if re.search(r"(?i)(redirect|url|next|goto|dest)=https?%3a|=https?://", parca.query or ""):
         bulgular.append(Bulgu("yonlendirme", "Bağlantı başka bir adrese yönlendirme parametresi taşıyor.", 15, "phishing"))
+
+    # 8) ML: yalnızca güvenilir olmayan alanlarda ve yüksek güvende, açıklamalı bir bulgu olarak katılır.
+    # Puan harmanlanmaz; böylece zayıf kural sinyalleri ML ile birleşip yanlış alarma dönüşmez.
+    kisaltilmis = host in KISALTICILAR or kok in KISALTICILAR  # alan adı hedef hakkında bilgi vermez
+    if not resmi and not sonuc_ip and not kisaltilmis:
+        tahmin = url_model.tahmin_et(url)
+        if tahmin:
+            sonuc.ml = tahmin
+            p = float(tahmin["olasiliklar"].get("phishing", 0))  # type: ignore[union-attr]
+            if p >= config.URL_ML_ESIK:
+                bulgular.append(Bulgu(
+                    "ml_url",
+                    f"Yapay zekâ modeli alan adını bilinen phishing alan adlarına benzetiyor (olasılık %{p * 100:.0f}).",
+                    35, "phishing",
+                ))
 
     sonuc.bulgular = bulgular
     return sonuclandir(sonuc)
