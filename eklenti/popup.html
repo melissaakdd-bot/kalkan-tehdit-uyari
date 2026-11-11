@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --ink:#16181d; --muted:#646b78; --line:#e2e5ea; --bg:#fff; --ok:#1d8a4e; --ok-bg:#e6f5ec; --warn:#a86400; --warn-bg:#fdf1dc; --bad:#c42b2b; --bad-bg:#fbe5e5; --accent:#2c5cdd; }
+  @media (prefers-color-scheme: dark) { :root { --ink:#e8eaee; --muted:#9aa2af; --line:#2a2f38; --bg:#181b21; --ok:#4cc27f; --ok-bg:#16301f; --warn:#f0b04a; --warn-bg:#33270f; --bad:#ff6b6b; --bad-bg:#3a1616; --accent:#7c9cff; } }
+  body { margin:0; width:320px; background:var(--bg); color:var(--ink); font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  header { display:flex; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid var(--line); }
+  header b { font-size:15px; }
+  #sunucu { margin-left:auto; font-size:11px; color:var(--muted); }
+  .kutu { margin:12px 14px; padding:12px; border-radius:10px; background:var(--ok-bg); }
+  .kutu.supheli { background:var(--warn-bg); } .kutu.tehlikeli { background:var(--bad-bg); } .kutu.hata, .kutu.yok { background:transparent; border:1px solid var(--line); }
+  .seviye { font-weight:700; font-size:15px; }
+  .guvenli .seviye { color:var(--ok); } .supheli .seviye { color:var(--warn); } .tehlikeli .seviye { color:var(--bad); }
+  .adres { color:var(--muted); word-break:break-all; font-size:12px; margin-top:2px; }
+  ul { margin:8px 0 0; padding-left:18px; }
+  .satir { display:flex; align-items:center; justify-content:space-between; padding:8px 14px; border-top:1px solid var(--line); }
+  a, button.bag { color:var(--accent); background:none; border:0; padding:0; font:inherit; cursor:pointer; text-decoration:none; }
+</style>
+</head>
+<body>
+  <header><b>🛡️ Kalkan</b><span id="sunucu">…</span></header>
+  <div id="sonuc" class="kutu yok">Bu sekme için sonuç yok.</div>
+  <div class="satir"><label><input type="checkbox" id="aktif"> Otomatik koruma</label></div>
+  <div class="satir"><label><input type="checkbox" id="indirmeler"> İndirilen dosyaları tara</label></div>
+  <div class="satir"><button class="bag" id="panel">Paneli aç</button><a href="ayarlar.html" target="_blank">Ayarlar</a></div>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,20 +1,37 @@
 # Kalkan: Yapay Zekâ Destekli Tehdit Uyarı Sistemi
 
-E-posta, SMS, bağlantı ve dosyaları phishing (oltalama), spam ve zararlı yazılım açısından tarar. Risk puanı (0-100) ve seviye (güvenli / şüpheli / tehlikeli) üretir. Şüpheli ve tehlikeli sonuçlar için panelde, masaüstünde ve isteğe bağlı olarak Slack/Teams'te uyarı verir.
+E-posta, SMS, bağlantı, dosya ve QR kodları phishing (oltalama), spam ve zararlı yazılım açısından tarar. Chrome eklentisiyle açtığınız sayfaları ve indirdiğiniz dosyaları **otomatik** tarar. Her içerik için risk puanı (0-100) ve seviye (güvenli / şüpheli / tehlikeli) üretir. Şüpheli ve tehlikeli sonuçlarda tarayıcıda, panelde, masaüstünde ve isteğe bağlı olarak Slack/Teams'te uyarı verir.
 
-## Mimari: üç katmanlı hibrit tespit
+**Doğruluk:** Sistem gerçek ve etiketli veri setlerinde ölçüldü. Sonuçlar ve sınırları [docs/DOGRULUK.md](docs/DOGRULUK.md) dosyasında, ayrıca panelin "Doğruluk" bölümünde.
+
+| Kanal | Tespit oranı | Yanlış alarm |
+|---|---|---|
+| E-posta | %96,2 | %3,1 |
+| SMS (İngilizce) | %94,0 | %0,0 |
+| URL | %53,1 | %0,4 |
+
+Türkçe phishing için açık veri olmadığından ölçülemedi. Ayrıntılar raporda.
+
+## Ne yapar?
+
+| Özellik | Açıklama |
+|---|---|
+| **Otomatik koruma (Chrome eklentisi)** | Açılan her sayfanın adresini ve şifre/kart formlarını tarar. Tehlikeli sayfada tam ekran uyarı ve sistem bildirimi, şüpheli sayfada sarı çubuk gösterir. İndirilen dosyaları da tarar. |
+| **E-posta / SMS** | Ham e-posta verilirse SPF/DKIM/DMARC, gönderen taklidi, Reply-To ve ekler de incelenir. |
+| **Bağlantı** | Marka ve yazım taklidi, benzer harf, kısaltıcı, IP adresi, ücretsiz barındırma servisleri. Alan adları ayrıca bir ML modeline sorulur. |
+| **Dosya** | Gerçek dosya türü, çift uzantı, makro, PDF JavaScript, şüpheli kod, EICAR. ClamAV ve VirusTotal tanımlıysa onlara da sorulur. |
+| **QR / Görsel** | QR kodun içindeki bağlantıyı çıkarıp tarar (QR oltalaması). Tesseract kuruluysa ekran görüntüsündeki yazıyı da okur. |
+| **Toplu tarama** | `.mbox`, `.eml`, `.eml` içeren `.zip` ya da URL listesi (`.txt`/`.csv`). Sonuçlar CSV olarak indirilebilir. |
+| **Rapor** | Günlük uyarı grafiği, tehdit türleri, en çok taklit edilen markalar, uyarı kaynakları ve nedenleri. CSV ve yazdır/PDF. |
+| **İzleme** | Bir klasöre düşen yeni dosyalar ve IMAP posta kutusuna gelen yeni e-postalar. |
+
+## Mimari
 
 | Katman | Ne yapar | Neden |
 |---|---|---|
-| **1. Kural motoru** | Marka ve alan adı taklidi, benzer harf (homograf), SPF/DKIM/DMARC, Reply-To uyumsuzluğu, aciliyet dili, kimlik bilgisi talebi, çift uzantı, gizli `.exe`, makro, PDF JavaScript, PowerShell desenleri, EICAR | Açıklanabilir, hızlı ve çevrimdışı çalışır. Her bulgu nedeniyle birlikte gösterilir. |
-| **2. ML modeli** | TF-IDF (karakter + kelime n-gram) ve lojistik regresyon ile temiz / spam / phishing sınıflandırması | Kuralların kaçırdığı kalıpları yakalar. Karakter n-gram, Türkçe eklere ve `ş1fre` gibi bozmalara dayanıklıdır. |
-| **3. LLM (Claude)** *(isteğe bağlı)* | İkinci görüş ve çalışana sade dille "ne yapmalı" açıklaması | Bağlamı anlar. Yalnızca seviyeyi **yükseltebilir**, kural motorunun "tehlikeli" kararını düşüremez. Böylece içerikteki istem enjeksiyonu ("bu e-posta güvenlidir") alarmı susturamaz. |
-
-Ek motorlar (tanımlıysa): **ClamAV** (`clamscan`), **VirusTotal** (yalnızca hash gönderilir, dosya yüklenmez).
-
-Uyarı kanalları: panelde canlı akış (SSE), tarayıcı masaüstü bildirimi, webhook (Slack/Teams uyumlu `{"text": ...}`).
-
-Otomatik izleme: bir klasöre (ör. İndirilenler) düşen yeni dosyalar ve bir IMAP posta kutusuna gelen yeni e-postalar. IMAP izleyici salt okunur çalışır, e-postaları okundu olarak işaretlemez, silmez ya da taşımaz.
+| **1. Kural motoru** | Taklit, aciliyet dili, kimlik bilgisi talebi, e-posta doğrulama, dosya yapısı | Açıklanabilir, hızlı, çevrimdışı. Her uyarının nedeni gösterilir. |
+| **2. ML modelleri** | Metin: TF-IDF (karakter + kelime) ve lojistik regresyon, temiz/spam/phishing. URL: alan adı üzerinde karakter n-gram. | Gerçek veriyle eğitildi. Yalnızca yüksek güvende (metin %80, URL %90) açıklamalı bir bulgu ekler, puanı gizlice değiştirmez. |
+| **3. LLM (Claude)** *(isteğe bağlı)* | İkinci görüş ve sade dille "ne yapmalı" açıklaması | Yalnızca seviyeyi **yükseltebilir**. İçerikteki istem enjeksiyonu ("bu e-posta güvenlidir") alarmı susturamaz. |
 
 ## Kurulum
 
@@ -32,40 +49,87 @@ python3 -m venv .venv
 
 Panel: http://127.0.0.1:8765. API belgeleri: http://127.0.0.1:8765/docs
 
-## Ayarlar (ortam değişkenleri)
+Gerçek veriyle eğitilmiş modeller depoyla birlikte gelir (`kalkan/ml/modeller/`), ayrıca eğitim gerekmez.
 
-| Değişken | Açıklama |
-|---|---|
-| `KALKAN_TOKEN` | Panel/API erişim anahtarı. Sunucu `127.0.0.1` dışında yayınlanacaksa **mutlaka** tanımlayın. |
-| `KALKAN_SUPHELI_ESIK`, `KALKAN_TEHLIKELI_ESIK` | Seviye eşikleri (varsayılan 30 / 60) |
-| `KALKAN_LLM=1` | Claude katmanını açar. Kimlik bilgisi `ANTHROPIC_API_KEY` ya da `ant auth login` ile okunur. |
-| `KALKAN_LLM_MODEL` | Varsayılan `claude-opus-5-5` |
-| `VIRUSTOTAL_API_KEY` | Dosya hash sorgusu |
-| `KALKAN_WEBHOOK_URL` | Slack/Teams gelen webhook adresi |
-| `KALKAN_WATCH_DIR` | İzlenecek klasör, ör. `~/Downloads` |
-| `KALKAN_IMAP_HOST`, `KALKAN_IMAP_USER`, `KALKAN_IMAP_PASSWORD`, `KALKAN_IMAP_FOLDER` | Posta kutusu izleme. Uygulamaya özel şifre kullanın. |
-| `KALKAN_ML_TEK_BASINA=1` | ML modelinin kural sinyali olmadan tek başına uyarı üretmesine izin verir (aşağıya bakın) |
-| `KALKAN_MAX_DOSYA_MB` | Yükleme sınırı (varsayılan 25) |
+## Chrome eklentisi (otomatik koruma)
 
-Gizli değerleri koda ya da depoya yazmayın. `.env` dosyası kullanıyorsanız `.gitignore`'a ekleyin.
+1. Kalkan sunucusunu başlatın (yukarıdaki komut).
+2. Chrome'da `chrome://extensions` adresini açın ve sağ üstten **Geliştirici modu**'nu açın.
+3. **Paketlenmemiş öğe yükle** düğmesine basıp bu depodaki `eklenti` klasörünü seçin.
+4. Sunucuyu 8765 dışında bir portta çalıştırıyorsanız eklenti simgesi → **Ayarlar**'dan adresi girin (ör. `http://127.0.0.1:8766`).
 
-## ML modeli: gerçek kullanımdan önce yapılması gereken
+Bundan sonra açtığınız her sayfa otomatik taranır. Eklenti simgesindeki rozet sonucu gösterir:
+- **!** (kırmızı): tehlikeli
+- **?** (sarı): şüpheli
+- **–** (gri): sunucuya ulaşılamıyor
 
-Gelen tohum veri (`kalkan/ml/tohum_veri.csv`), elle yazılmış **60 örnekten** oluşur. 5 katlı çapraz doğrulamada doğruluk **%76,7** çıktı ve temiz mesajların yalnızca %55'i doğru tanındı. Bu yüzden model, kural sinyali yokken tek başına uyarı üretmez (`KALKAN_ML_TEK_BASINA` kapalı).
+Simgeye tıklayınca o sayfanın sonucu ve nedenleri görünür. Otomatik koruma ve indirme taraması da buradan kapatılabilir.
 
-Kurumda kullanmadan önce gerçek ve etiketli verinizle yeniden eğitin (sütunlar `metin,etiket`; etiketler `temiz|spam|phishing`):
+**Gizlilik:** Eklenti sayfanın adresini, başlığını, görünen metnin ilk 5.000 karakterini ve formların hangi adrese gönderildiğini **yalnızca bu bilgisayardaki** Kalkan sunucusuna gönderir. Girdiğiniz şifre ve kart bilgileri okunmaz. Sunucu temiz sayfaları kaydetmez, sayfa metnini hiç saklamaz ve tarayıcı taramalarını Claude'a göndermez. İndirilen dosyalar yalnızca İndirilenler klasöründen okunur (`KALKAN_INDIRME_DIZINI`).
+
+## QR ve görsel tarama
+
+QR okuma OpenCV ile çalışır ve kurulumla gelir. Ekran görüntüsündeki yazıyı okumak (OCR) için Tesseract ayrıca kurulmalıdır. macOS'ta:
+
+```bash
+brew install tesseract tesseract-lang
+```
+
+Tesseract kurulu değilse panel bunu belirtir ve yalnızca QR okunur.
+
+## Toplu tarama
+
+Panelde **Toplu tarama** bölümünden ya da komut satırından:
+
+```bash
+.venv/bin/python -m kalkan.bulk posta_kutusu.mbox --csv sonuc.csv
+```
+
+Gmail posta kutusu Google Paketler'den (takeout.google.com) `.mbox` olarak indirilebilir. Toplu taramada içerik Claude'a gönderilmez. Yalnızca uyarı alan öğeler geçmişe yazılır.
+
+## Doğruluğu kendiniz ölçün
+
+```bash
+.venv/bin/python -m kalkan.degerlendirme.calistir --indir --egit --etiket sonra
+```
+
+Bu komut sırayla şunları yapar:
+1. Açık veri setlerini (Nazario, SpamAssassin, UCI SMS, UCI Turkish Spam, PhiUSIIL) `veri_setleri/` klasörüne indirir. Bu klasör depoya eklenmez.
+2. Modelleri eğitim bölmesiyle eğitir.
+3. Görülmemiş test bölmesinde ölçer ve sonucu yazdırır.
+
+`--paket` eklenirse eğitilen modeller depodaki `kalkan/ml/modeller/` klasörüne kopyalanır.
+
+Kurumunuzdan gelen gerçek ve anonimleştirilmiş örneklerle ölçmek en güvenilir yoldur. Özellikle Türkçe phishing için bu gereklidir. Kendi CSV'nizle (`metin,etiket`) eğitmek için:
 
 ```bash
 .venv/bin/python -m kalkan.ml.egit --csv kendi_verim.csv --tohum
 ```
 
-Komut çapraz doğrulama raporunu basar. Sonuçlar tatmin ediciyse `KALKAN_ML_TEK_BASINA=1` ile açın. Eğitim verisindeki kişisel verileri (ad, telefon, T.C. kimlik no) önceden anonimleştirin.
+## Ayarlar (ortam değişkenleri ya da `.env`)
+
+| Değişken | Açıklama |
+|---|---|
+| `KALKAN_TOKEN` | Panel/API erişim anahtarı. Sunucu `127.0.0.1` dışında yayınlanacaksa **mutlaka** tanımlayın. Eklenti ayarlarına da girin. |
+| `KALKAN_SUPHELI_ESIK`, `KALKAN_TEHLIKELI_ESIK` | Seviye eşikleri (varsayılan 30 / 60) |
+| `KALKAN_METIN_ML_ESIK`, `KALKAN_URL_ML_ESIK` | ML modellerinin bulgu eklediği olasılık eşikleri (varsayılan 0,8 / 0,9) |
+| `KALKAN_LLM=1` | Claude katmanını açar. Kimlik bilgisi `ANTHROPIC_API_KEY` ya da `ant auth login` ile okunur. |
+| `KALKAN_LLM_MODEL` | Varsayılan `claude-opus-5-5` |
+| `VIRUSTOTAL_API_KEY` | Dosya hash sorgusu |
+| `KALKAN_WEBHOOK_URL` | Slack/Teams gelen webhook adresi |
+| `KALKAN_INDIRME_DIZINI` | Eklentinin indirdiği dosyaların okunabileceği tek klasör (varsayılan `~/Downloads`) |
+| `KALKAN_WATCH_DIR` | İzlenecek klasör, ör. `~/Downloads` |
+| `KALKAN_IMAP_HOST`, `KALKAN_IMAP_USER`, `KALKAN_IMAP_PASSWORD`, `KALKAN_IMAP_FOLDER` | Posta kutusu izleme. Uygulamaya özel şifre kullanın. |
+| `KALKAN_MAX_DOSYA_MB`, `KALKAN_MAX_TOPLU_MB` | Yükleme sınırları (varsayılan 25 / 200) |
+
+Örnek dosya: `.env.example`. Gizli değerleri koda ya da depoya yazmayın.
 
 ## KVKK ve gizlilik
 
-- Veritabanında içeriğin tamamı saklanmaz. Kısa etiket (konu ya da ilk 80 karakter, uzun sayılar maskeli) ve bulgular saklanır.
-- LLM katmanı **varsayılan olarak kapalıdır**. Açıldığında e-posta/SMS metni ve URL Anthropic API'ye gönderilir (yurt dışına aktarım). Dosyaların kendisi gönderilmez. Açmadan önce kurumunuzun KVKK değerlendirmesini ve çalışan aydınlatmasını yapın.
+- Veritabanında içeriğin tamamı saklanmaz. Kısa etiket (konu ya da ilk 80 karakter, uzun sayılar maskeli) ve bulgular saklanır. Tarayıcı ve toplu taramalarda temiz sonuçlar yalnızca günlük sayaca yansır.
+- LLM katmanı **varsayılan olarak kapalıdır**. Açıldığında paneldeki e-posta/SMS metni ve URL Anthropic API'ye gönderilir (yurt dışına aktarım). Tarayıcı, toplu tarama ve klasör izleme içerikleri ile dosyaların kendisi hiçbir zaman gönderilmez. Açmadan önce kurumunuzun KVKK değerlendirmesini ve çalışan aydınlatmasını yapın.
 - VirusTotal'e yalnızca SHA-256 hash gönderilir.
+- Değerlendirme veri setlerindeki hata örnekleri depoya eklenmez, çünkü bu veri setlerinde gerçek kişilerin adları geçebilir.
 
 ## Testler
 
@@ -75,12 +139,12 @@ Komut çapraz doğrulama raporunu basar. Sonuçlar tatmin ediciyse `KALKAN_ML_TE
 
 ## Sınırlar
 
-Kalkan bir antivirüs ya da e-posta ağ geçidinin yerini tutmaz, onlara ek bir katmandır. Dosyaları çalıştırmaz (sandbox yok), bağlantıları açmaz. Tespit statik analize dayanır. Yeni ve hedefli saldırıları kaçırabilir. Sonuçları çalışan farkındalık eğitimiyle birlikte kullanın.
+Kalkan bir antivirüs ya da e-posta ağ geçidinin yerini tutmaz, onlara ek bir katmandır. Dosyaları çalıştırmaz (sandbox yok), bağlantıları açmaz. Tespit statik analize dayanır. Yeni ve hedefli saldırıları kaçırabilir. URL tespiti orta düzeydedir: phishing adreslerinin yaklaşık yarısı yalnızca adresten tanınabiliyor. Eklentinin sayfa içi kontrolü bu açığı kısmen kapatır. Sonuçları çalışan farkındalık eğitimiyle birlikte kullanın.
 
 ## Yol haritası önerileri
 
-- Google Safe Browsing / USOM zararlı bağlantı listesi entegrasyonu
+- Türkçe phishing örnekleriyle (kurum içi, anonimleştirilmiş) ölçüm ve eğitim
+- USOM zararlı bağlantı listesi entegrasyonu
+- Panelde "yanlış alarm / kaçırılmış tehdit" geri bildirimi ve bununla yeniden eğitim
 - YARA kuralları
-- Outlook / Gmail eklentisi ile "Kalkan'a bildir" düğmesi
-- Kullanıcı geri bildirimiyle ("bu yanlış alarm") modeli sürekli iyileştirme
-- Rol tabanlı erişim ve denetim kaydı
+- Outlook / Gmail eklentisi

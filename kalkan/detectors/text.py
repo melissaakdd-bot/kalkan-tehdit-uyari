@@ -226,7 +226,7 @@ def metin_analiz(icerik: str, tur: str = "eposta", kaynak: str = "panel") -> Son
                 if hedefler and not any(h == resmi or (h or "").endswith("." + resmi) for h in hedefler):
                     bulgular.append(Bulgu(
                         "marka_baglanti_uyumsuz",
-                        f"Mesaj '{marka}' adına yazılmış ama bağlantılar resmî alana ({resmi}) gitmiyor.",
+                        f"Mesaj '{RESMI_ALANLAR.get(resmi, marka)}' adına yazılmış ama bağlantılar resmî alana ({resmi}) gitmiyor.",
                         35, "phishing",
                     ))
                 break

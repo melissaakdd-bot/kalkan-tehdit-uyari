@@ -3,3 +3,6 @@ uvicorn[standard]
 python-multipart
 scikit-learn
 anthropic
+opencv-python-headless
+# İsteğe bağlı: ekran görüntüsündeki yazıyı okumak için ayrıca Tesseract programı gerekir (README)
+pytesseract

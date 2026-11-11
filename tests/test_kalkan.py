@@ -34,6 +34,24 @@ class UrlTest(unittest.TestCase):
         self.assertEqual(urlleri_bul("Bkz: ptt-kargo.top ve https://a.com/b."), ["ptt-kargo.top", "https://a.com/b"])
         self.assertEqual(urlleri_bul("Ekteki rapor.pdf dosyasına bak"), [])
 
+    def test_kelime_ve_dosya_adi_adres_sayilmaz(self):
+        # Boşluğu kaybolmuş Türkçe metin ve paket adları gerçek veride yanlış alarm üretiyordu
+        self.assertEqual(urlleri_bul("3.sınıf öğrencileri olması.Yukarıdaki alsa-driver-0.9.0.rpm NET.WORKS"), [])
+
+    def test_populer_siteler_ml_yanlis_alarmi_vermez(self):
+        # Tam URL ile eğitilen ilk model bunlara %90+ phishing diyordu (PhiUSIIL yol kestirmesi)
+        for u in ["https://github.com/anthropics", "https://mail.google.com/mail/u/0/", "https://docs.python.org/3/",
+                  "https://www.yapayzekaokulum.com/egitimler", "https://www.meb.gov.tr", "https://odtu.edu.tr/x"]:
+            self.assertEqual(url_analiz(u).seviye, "guvenli", u)
+
+    def test_ucretsiz_barindirma_guvenilir_sayilmaz(self):
+        s = url_analiz("https://ziraat-giris.web.app/")
+        self.assertIn("kullanici_icerigi", [b.kod for b in s.bulgular])
+        self.assertNotEqual(s.seviye, "guvenli")
+
+    def test_kisaltici_ml_e_sorulmaz(self):
+        self.assertNotIn("ml_url", [b.kod for b in url_analiz("http://tinyurl.com/1usn").bulgular])
+
 
 class MetinTest(unittest.TestCase):
     def test_kargo_sms(self):
@@ -96,6 +114,82 @@ class DosyaTest(unittest.TestCase):
     def test_temiz_dosyalar(self):
         self.assertEqual(dosya_analiz(b"merhaba", "not.txt").seviye, "guvenli")
         self.assertEqual(dosya_analiz(b"%PDF-1.7\n1 0 obj<<>>endobj", "rapor.pdf").seviye, "guvenli")
+
+
+class SayfaTest(unittest.TestCase):
+    def test_sahte_giris_sayfasi(self):
+        from kalkan.detectors.page import sayfa_analiz
+        s = sayfa_analiz("https://ziraat-bireysel.web.app/", "Ziraat Bankası İnternet Şubesi", "Şifrenizi girin",
+                         [{"action": "https://topla.example.ru/p.php", "sifre": True}])
+        kodlar = [b.kod for b in s.bulgular]
+        self.assertEqual(s.seviye, "tehlikeli")
+        self.assertIn("sahte_giris_sayfasi", kodlar)
+        self.assertIn("form_baska_alana", kodlar)
+
+    def test_gercek_banka_sayfasi(self):
+        from kalkan.detectors.page import sayfa_analiz
+        s = sayfa_analiz("https://www.ziraatbank.com.tr/tr", "Ziraat Bankası", "Giriş",
+                         [{"action": "https://www.ziraatbank.com.tr/login", "sifre": True}])
+        self.assertEqual(s.seviye, "guvenli")
+
+    def test_sifre_formsuz_siradan_sayfa(self):
+        from kalkan.detectors.page import sayfa_analiz
+        self.assertEqual(sayfa_analiz("https://www.wikipedia.org/", "Wikipedia", "Özgür ansiklopedi", []).seviye, "guvenli")
+
+
+class GorselTest(unittest.TestCase):
+    def test_qr_icindeki_riskli_baglanti(self):
+        import cv2
+        from kalkan.detectors.image import gorsel_analiz
+        img = cv2.QRCodeEncoder.create().encode("https://ptt-kargo-teslimat.top/odeme")
+        img = cv2.copyMakeBorder(cv2.resize(img, None, fx=8, fy=8, interpolation=cv2.INTER_NEAREST),
+                                 40, 40, 40, 40, cv2.BORDER_CONSTANT, value=255)
+        s = gorsel_analiz(cv2.imencode(".png", img)[1].tobytes(), "qr.png")
+        self.assertEqual(s.ek["qr"][0]["icerik"], "https://ptt-kargo-teslimat.top/odeme")
+        self.assertEqual(s.seviye, "tehlikeli")
+
+    def test_qr_olmayan_gorsel(self):
+        import cv2
+        import numpy as np
+        from kalkan.detectors.image import gorsel_analiz
+        s = gorsel_analiz(cv2.imencode(".png", np.full((80, 80), 255, np.uint8))[1].tobytes(), "bos.png")
+        self.assertEqual((s.ek["qr"], s.seviye), ([], "guvenli"))
+
+
+class TopluTest(unittest.TestCase):
+    def test_url_listesi_ve_eml_zip(self):
+        from kalkan.bulk import ogeler
+        self.assertEqual([t for t, _ in ogeler("l.txt", b"https://a.com\nmerhaba\nptt-kargo.top\n")], ["url", "url"])
+        tampon = io.BytesIO()
+        with zipfile.ZipFile(tampon, "w") as z:
+            z.writestr("a.eml", "Subject: x\n\nmerhaba")
+            z.writestr("b.eml", "Subject: y\n\nselam")
+        self.assertEqual(len(list(ogeler("posta.zip", tampon.getvalue()))), 2)
+
+    def test_desteklenmeyen_bicim(self):
+        from kalkan.bulk import ogeler
+        with self.assertRaises(ValueError):
+            list(ogeler("x.docx", b"..."))
+
+
+class IndirmeGuvenlikTest(unittest.TestCase):
+    def test_indirilenler_disindaki_dosya_okunmaz(self):
+        from kalkan import config, service, store
+        store.hazirla()
+        with tempfile.TemporaryDirectory() as d:
+            eski = config.INDIRME_DIZINI
+            config.INDIRME_DIZINI = d
+            try:
+                with self.assertRaises(PermissionError):
+                    service.indirme_tara("/etc/hosts")
+                with self.assertRaises(PermissionError):  # ../ ile kaçış denemesi
+                    service.indirme_tara(os.path.join(d, "..", "..", "etc", "hosts"))
+                yol = os.path.join(d, "dekont.pdf.exe")
+                with open(yol, "wb") as f:
+                    f.write(b"MZ" + b"\0" * 64)
+                self.assertEqual(service.indirme_tara(yol)["seviye"], "tehlikeli")
+            finally:
+                config.INDIRME_DIZINI = eski
 
 
 class LlmBirlestirmeTest(unittest.TestCase):

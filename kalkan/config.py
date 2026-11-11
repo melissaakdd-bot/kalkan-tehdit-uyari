@@ -49,6 +49,7 @@ URL_ML_ESIK = float(os.getenv("KALKAN_URL_ML_ESIK", "0.9"))
 
 # Dosya yükleme sınırı
 MAX_DOSYA_MB = int(os.getenv("KALKAN_MAX_DOSYA_MB", "25"))
+MAX_TOPLU_MB = int(os.getenv("KALKAN_MAX_TOPLU_MB", "200"))
 
 # LLM katmanı varsayılan olarak kapalı: içerik dış servise gider, KVKK değerlendirmesi gerekir.
 LLM_ENABLED = _bool("KALKAN_LLM", False)
@@ -58,6 +59,9 @@ LLM_MAX_CHARS = int(os.getenv("KALKAN_LLM_MAX_CHARS", "40000"))
 # İsteğe bağlı dış servisler
 VIRUSTOTAL_API_KEY = os.getenv("VIRUSTOTAL_API_KEY", "")
 ALERT_WEBHOOK_URL = os.getenv("KALKAN_WEBHOOK_URL", "")  # Slack/Teams uyumlu {"text": ...}
+
+# Tarayıcı eklentisinin indirdiği dosyalar yalnızca bu klasörden okunabilir
+INDIRME_DIZINI = os.getenv("KALKAN_INDIRME_DIZINI", str(Path.home() / "Downloads"))
 
 # İzleyiciler
 WATCH_DIR = os.getenv("KALKAN_WATCH_DIR", "")
