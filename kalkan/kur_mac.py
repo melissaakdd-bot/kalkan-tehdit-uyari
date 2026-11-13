@@ -23,7 +23,7 @@ from . import config
 from .masaustu import SERVIS_ETIKETI
 
 UYGULAMA_KIMLIGI = "com.yapayzekaokulum.kalkan"
-SURUM = "0.5.0"
+SURUM = "0.6.0"
 
 
 def varsayilan_yollar() -> dict:

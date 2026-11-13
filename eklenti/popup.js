@@ -31,7 +31,9 @@ function el(etiket, sinif, metin) {
   kutu.textContent = "";
   if (kayit.hata) {
     kutu.className = "kutu hata";
-    kutu.append(el("div", "seviye", kayit.hata), el("div", "adres", "Kalkan sunucusunun çalıştığını ve ayarlardaki adresi kontrol edin."));
+    kutu.append(el("div", "seviye", kayit.hata), el("div", "adres", kayit.hata.includes("anahtar")
+      ? "Kalkan penceresindeki 🔑 Eklenti anahtarı'nı kopyalayıp eklenti Ayarlar'ına yapıştırın."
+      : "Kalkan uygulamasının açık olduğunu ve ayarlardaki adresi kontrol edin."));
     return;
   }
   kutu.className = "kutu " + kayit.seviye;

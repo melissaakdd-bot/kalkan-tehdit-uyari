@@ -18,6 +18,8 @@ os.environ["KALKAN_OTOMATIK_TARAMA_SAAT"] = "0"
 os.environ["KALKAN_WATCH_DIR"] = ""
 os.environ["KALKAN_IMAP_HOST"] = ""
 os.environ["KALKAN_LLM"] = "0"  # testler dış API çağırmaz (.env'deki ayarı ezer)
+os.environ["KALKAN_TOKEN"] = "test-anahtari-" + "x" * 32
+os.environ["KALKAN_IZINLI_HOSTLAR"] = "127.0.0.1,localhost,testserver"
 
 from kalkan import config as _config  # noqa: E402
 
@@ -477,6 +479,8 @@ class MacUygulamaPaketiTest(unittest.TestCase):
 
 
 class BaskaSiteKorumaTest(unittest.TestCase):
+    ANAHTAR = {"X-Kalkan-Token": "test-anahtari-" + "x" * 32}
+
     def test_dis_siteden_gelen_degisiklik_istegi_reddedilir(self):
         from fastapi.testclient import TestClient
         from kalkan.main import app
@@ -484,17 +488,61 @@ class BaskaSiteKorumaTest(unittest.TestCase):
         # sınanır. Dosya silen uç noktalar (karantinayı boşalt vb.) testte asla çağrılmaz.
         govde = {"url": "https://a.com"}
         with TestClient(app) as c:
-            r = c.post("/api/tara/url", json=govde, headers={"Origin": "https://kotu-site.example"})
+            r = c.post("/api/tara/url", json=govde, headers={**self.ANAHTAR, "Origin": "https://kotu-site.example"})
             self.assertEqual(r.status_code, 403)
-            r = c.post("/api/tara/url", json=govde, headers={"Origin": "null"})
+            r = c.post("/api/tara/url", json=govde, headers={**self.ANAHTAR, "Origin": "null"})
             self.assertEqual(r.status_code, 403)
-            # Panelin kendisi, Chrome eklentisi ve Origin göndermeyen yerel araçlar (curl) kabul edilir
-            self.assertEqual(c.post("/api/tara/url", json=govde, headers={"Origin": "http://testserver"}).status_code, 200)
-            self.assertEqual(c.post("/api/tara/url", json={"url": "https://a.com"},
-                                    headers={"Origin": "chrome-extension://abcdef"}).status_code, 200)
-            self.assertEqual(c.post("/api/tara/url", json={"url": "https://a.com"}).status_code, 200)
-            # Okuma istekleri etkilenmez
+            # Panelin kendisi, Chrome eklentisi ve Origin göndermeyen yerel araçlar (anahtarla) kabul edilir
+            for origin in ("http://testserver", "chrome-extension://abcdef", None):
+                h = dict(self.ANAHTAR, **({"Origin": origin} if origin else {}))
+                self.assertEqual(c.post("/api/tara/url", json=govde, headers=h).status_code, 200, origin)
             self.assertEqual(c.get("/api/durum", headers={"Origin": "https://kotu-site.example"}).status_code, 200)
+
+    def test_dns_rebinding_reddedilir(self):
+        # Saldırganın alan adı 127.0.0.1'e çözülse bile Host başlığı onun adıdır: hiçbir istek yanıtlanmaz
+        from fastapi.testclient import TestClient
+        from kalkan.main import app
+        with TestClient(app) as c:
+            for yol in ("/", "/api/durum", "/api/gecmis", "/api/uygulamalar"):
+                r = c.get(yol, headers={**self.ANAHTAR, "Host": "kotu-site.example:8790"})
+                self.assertEqual(r.status_code, 400, yol)
+
+    def test_anahtarsiz_ve_adres_satirindaki_anahtar_reddedilir(self):
+        from fastapi.testclient import TestClient
+        from kalkan.main import app
+        with TestClient(app) as c:
+            c.cookies.clear()
+            self.assertEqual(c.get("/api/gecmis").status_code, 401)
+            self.assertEqual(c.get("/api/eklenti/anahtar").status_code, 401)
+            self.assertEqual(c.get("/api/gecmis?token=" + self.ANAHTAR["X-Kalkan-Token"]).status_code, 401)
+            self.assertEqual(c.get("/api/gecmis", headers={"X-Kalkan-Token": "yanlis"}).status_code, 401)
+            self.assertEqual(c.post("/api/oturum", headers={"X-Kalkan-Token": "yanlis"}).status_code, 401)
+            self.assertEqual(c.get("/api/gecmis", headers=self.ANAHTAR).status_code, 200)
+
+    def test_panel_cerezi(self):
+        from fastapi.testclient import TestClient
+        from kalkan.main import CEREZ, app
+        with TestClient(app) as c:
+            r = c.get("/")
+            cerez = r.headers.get("set-cookie", "")
+            self.assertIn(CEREZ, cerez)
+            self.assertIn("HttpOnly", cerez)
+            self.assertIn("samesite=strict", cerez.lower())
+            self.assertEqual(c.get("/api/gecmis").status_code, 200)  # çerezle, başlıksız
+            self.assertEqual(c.get("/api/eklenti/anahtar").json()["anahtar"], self.ANAHTAR["X-Kalkan-Token"])
+
+    def test_anahtar_dosyasi_yalnizca_kullaniciya_acik(self):
+        import stat
+        from pathlib import Path
+        from unittest import mock
+        from kalkan import config
+        d = Path(tempfile.mkdtemp(prefix="kalkan-anahtar-"))
+        with mock.patch.dict(os.environ, {"KALKAN_TOKEN": ""}), mock.patch.object(config, "DATA_DIR", d):
+            a1 = config._erisim_anahtari()
+            a2 = config._erisim_anahtari()
+        self.assertEqual(a1, a2)  # ikinci açılışta aynı anahtar
+        self.assertGreaterEqual(len(a1), 32)
+        self.assertEqual(stat.S_IMODE((d / "erisim_anahtari").stat().st_mode), 0o600)
 
 
 class LlmBirlestirmeTest(unittest.TestCase):

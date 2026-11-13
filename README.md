@@ -87,6 +87,8 @@ Diğer komutlar:
 3. **Paketlenmemiş öğe yükle** düğmesine basıp bu depodaki `eklenti` klasörünü seçin.
 4. Kalkan.app kullanıyorsanız ayar gerekmez (varsayılan `http://127.0.0.1:8790`). Sunucuyu elle başka bir portta çalıştırıyorsanız eklenti simgesi → **Ayarlar**'dan adresi girin.
 
+5. **Eklentiyi Kalkan'a bağlayın:** Eklenti kurulunca ayarlar sayfası açılır. Kalkan penceresinin sağ üstündeki **🔑 Eklenti anahtarı** düğmesinden anahtarı kopyalayıp **Erişim anahtarı** alanına yapıştırın. Kalkan, anahtarı bilmeyen programlardan komut kabul etmez.
+
 Bundan sonra açtığınız her sayfa otomatik taranır. Eklenti simgesindeki rozet sonucu gösterir:
 - **!** (kırmızı): tehlikeli
 - **?** (sarı): şüpheli
@@ -185,7 +187,8 @@ Kurumunuzdan gelen gerçek ve anonimleştirilmiş örneklerle ölçmek en güven
 
 | Değişken | Açıklama |
 |---|---|
-| `KALKAN_TOKEN` | Panel/API erişim anahtarı. Sunucu `127.0.0.1` dışında yayınlanacaksa **mutlaka** tanımlayın. Eklenti ayarlarına da girin. |
+| `KALKAN_TOKEN` | Erişim anahtarı. Tanımlanmazsa ilk açılışta rastgele üretilir ve `data/erisim_anahtari` dosyasında (yalnızca sizin okuyabileceğiniz izinlerle) saklanır. |
+| `KALKAN_IZINLI_HOSTLAR` | Sunucunun yanıt verdiği adlar (varsayılan `127.0.0.1,localhost,[::1]`) |
 | `KALKAN_SUPHELI_ESIK`, `KALKAN_TEHLIKELI_ESIK` | Seviye eşikleri (varsayılan 30 / 60) |
 | `KALKAN_METIN_ML_ESIK`, `KALKAN_URL_ML_ESIK` | ML modellerinin bulgu eklediği olasılık eşikleri (varsayılan 0,8 / 0,9) |
 | `KALKAN_LLM=1` | Claude katmanını açar. Kimlik bilgisi `ANTHROPIC_API_KEY` ya da `ant auth login` ile okunur. |
@@ -200,6 +203,16 @@ Kurumunuzdan gelen gerçek ve anonimleştirilmiş örneklerle ölçmek en güven
 | `KALKAN_MAX_DOSYA_MB`, `KALKAN_MAX_TOPLU_MB` | Yükleme sınırları (varsayılan 25 / 200) |
 
 Örnek dosya: `.env.example`. Gizli değerleri koda ya da depoya yazmayın.
+
+## Yerel sunucunun güvenliği
+
+Kalkan'ın sunucusu dosya taşıyıp sildiği için yalnızca bu bilgisayardaki panel ve eklenti tarafından kullanılabilir:
+
+- **Yalnızca yerel ad:** Sunucu yalnızca `127.0.0.1` ve `localhost` adıyla gelen isteklere yanıt verir. Kötü niyetli bir sitenin alan adını 127.0.0.1'e yönlendirip ("DNS rebinding") Kalkan'ın verilerini okuması bu sayede engellenir.
+- **Erişim anahtarı:** Her istek anahtar ister. Panel anahtarı HttpOnly ve SameSite=Strict bir oturum çereziyle gönderir. Eklenti ise başlıkla gönderir. Anahtar adres satırında kabul edilmez, böylece kayıt dosyalarına düşmez.
+- **Başka sitelerden gelen istekler:** Değişiklik yapan isteklerde Origin denetimi yapılır. Yalnızca panelin kendisi ve Chrome eklentisi kabul edilir.
+
+**İzinler hakkında:** Kalkan'ın servisi macOS'un Python'u ile çalışır. Bu yüzden izin pencerelerinde "Python" yazar ve Python'a verilen izinler bu Python ile çalışan **her** programa geçerlidir. Tam Disk Erişimi ya da Erişilebilirlik vermek yerine yalnızca Masaüstü, Belgeler ve İndirilenler'e (Sistem Ayarları → Gizlilik ve Güvenlik → Dosyalar ve Klasörler) izin vermeniz önerilir.
 
 ## KVKK ve gizlilik
 

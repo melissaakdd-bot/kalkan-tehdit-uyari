@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 STATIC = Path(__file__).resolve().parent.parent / "static"
 # Panel (static/index.html) beklediği sürümü bilir; sunucu eski kodla çalışıyorsa uyarı gösterir.
 # Uç nokta eklendiğinde ya da değiştiğinde ikisi birlikte artırılır.
-SURUM = "0.5.0"
+SURUM = "0.6.0"
 
 
 @asynccontextmanager
@@ -44,8 +44,24 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Kalkan", description="Yapay zekâ destekli tehdit uyarı sistemi", lifespan=lifespan)
 
 
+def _host_adi(host: str) -> str:
+    host = host.strip().lower()
+    if host.startswith("["):  # IPv6: [::1]:8790
+        return host.split("]", 1)[0] + "]"
+    return host.rsplit(":", 1)[0] if ":" in host else host
+
+
 @app.middleware("http")
 async def baska_site_koruma(request: Request, call_next):
+    # 1) DNS rebinding: kötü niyetli bir alan adı 127.0.0.1'e yönlendirilse bile Host başlığı o alan adı
+    #    olarak gelir. Yalnızca yerel adlarla gelen isteklere yanıt verilir; aksi hâlde sitenin sayfası
+    #    tarayıcıda "aynı kaynak" sayılıp Kalkan'ın verilerini okuyabilirdi.
+    if _host_adi(request.headers.get("host", "")) not in config.IZINLI_HOSTLAR:
+        return JSONResponse({"detail": "Geçersiz istek adresi"}, status_code=400)
+    return await _kaynak_kontrol(request, call_next)
+
+
+async def _kaynak_kontrol(request: Request, call_next):
     """Dışarıdan istek sahteciliğine (CSRF) karşı koruma.
 
     Tarayıcıda açık kötü niyetli bir site, kullanıcının bilgisayarındaki bu sunucuya form ile POST
@@ -63,12 +79,21 @@ async def baska_site_koruma(request: Request, call_next):
     return await call_next(request)
 
 
-def yetki(x_kalkan_token: Optional[str] = Header(default=None), token: Optional[str] = Query(default=None)) -> None:
+CEREZ = f"kalkan_oturum_{config.PORT}"
+
+
+def yetki(request: Request, x_kalkan_token: Optional[str] = Header(default=None)) -> None:
+    """Panel anahtarı çerezle (HttpOnly, SameSite=Strict), Chrome eklentisi X-Kalkan-Token başlığıyla gönderir.
+    Anahtar adres satırında (?token=) kabul edilmez: sunucu kayıtlarına düşerdi."""
     if not config.PANEL_TOKEN:
         return
-    verilen = x_kalkan_token or token or ""
-    if not hmac.compare_digest(verilen, config.PANEL_TOKEN):
+    verilen = x_kalkan_token or request.cookies.get(CEREZ) or ""
+    if not hmac.compare_digest(verilen.encode(), config.PANEL_TOKEN.encode()):
         raise HTTPException(status_code=401, detail="Geçersiz ya da eksik erişim anahtarı")
+
+
+def _cerez_ekle(yanit) -> None:
+    yanit.set_cookie(CEREZ, config.PANEL_TOKEN, httponly=True, samesite="strict", path="/")
 
 
 def _oku(dosya: UploadFile, sinir_mb: int) -> bytes:
@@ -108,7 +133,27 @@ class IndirmeIstek(BaseModel):
 
 @app.get("/", include_in_schema=False)
 def panel() -> FileResponse:
-    return FileResponse(STATIC / "index.html")
+    # Panel sayfası açılırken oturum çerezi verilir. Başka siteler bu sayfayı okuyamaz (Host kontrolü + aynı
+    # kaynak kuralı) ve SameSite=Strict çerez başka sitelerden gelen isteklere eklenmez.
+    yanit = FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-store"})
+    _cerez_ekle(yanit)
+    return yanit
+
+
+@app.post("/api/oturum", include_in_schema=False)
+def oturum(x_kalkan_token: Optional[str] = Header(default=None)) -> JSONResponse:
+    """Çerez kaybolursa panelde anahtar elle girilir; doğruysa çerez yenilenir."""
+    if not x_kalkan_token or not hmac.compare_digest(x_kalkan_token.encode(), config.PANEL_TOKEN.encode()):
+        raise HTTPException(status_code=401, detail="Geçersiz erişim anahtarı")
+    yanit = JSONResponse({"ok": True})
+    _cerez_ekle(yanit)
+    return yanit
+
+
+@app.get("/api/eklenti/anahtar", dependencies=[Depends(yetki)])
+def eklenti_anahtari() -> dict:
+    """Chrome eklentisini eşleştirmek için anahtar (yalnızca oturum açmış panel görebilir)."""
+    return {"anahtar": config.PANEL_TOKEN}
 
 
 @app.get("/api/durum")

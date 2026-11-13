@@ -126,4 +126,9 @@ chrome.notifications.onClicked.addListener(async () => {
   chrome.tabs.create({ url: a.sunucu });
 });
 
+// İlk kurulumda ayarlar açılır: eklentinin çalışması için Kalkan'ın erişim anahtarı gerekir
+chrome.runtime.onInstalled.addListener((ayrinti) => {
+  if (ayrinti.reason === "install") chrome.runtime.openOptionsPage();
+});
+
 chrome.tabs.onRemoved.addListener((tabId) => chrome.storage.session.remove("sekme_" + tabId));

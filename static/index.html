@@ -169,6 +169,7 @@
     <button data-gorunum="dogruluk">Doğruluk</button>
   </nav>
   <div class="durum" id="durum"></div>
+  <button class="ikincil" id="eklentiAnahtarAc" title="Chrome eklentisini bu Kalkan'a bağlamak için">🔑 Eklenti anahtarı</button>
 </header>
 <div id="surumUyari" class="gizli" role="alert" style="background:var(--warn-bg);color:var(--ink);border-bottom:1px solid var(--line);padding:10px 24px;font-size:14px"></div>
 
@@ -392,6 +393,21 @@
 
 <div class="ipucu-kutu gizli" id="ipucuKutu"></div>
 
+<div id="anahtarKutusu" class="gizli" role="dialog" aria-modal="true" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:30">
+  <div class="kart" style="max-width:520px;width:100%">
+    <h2>Chrome eklentisini bağla</h2>
+    <p class="kucuk">Kalkan, yalnızca bu anahtarı bilen programlardan komut kabul eder. Eklentiyi bağlamak için:
+      Chrome'da Kalkan simgesi → <b>Ayarlar</b> → <b>Erişim anahtarı</b> alanına yapıştırıp <b>Kaydet</b>'e basın.
+      Anahtarı başkasıyla paylaşmayın.</p>
+    <input type="text" id="anahtarMetin" readonly style="margin:8px 0">
+    <div class="satir" style="justify-content:flex-end">
+      <span class="kucuk" id="anahtarBilgi"></span>
+      <button class="ikincil" id="anahtarKapat">Kapat</button>
+      <button class="ana" id="anahtarKopyala">Kopyala</button>
+    </div>
+  </div>
+</div>
+
 <div id="tokenKutusu" class="gizli" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px">
   <div class="kart" style="max-width:380px;width:100%">
     <h2>Erişim anahtarı</h2>
@@ -404,7 +420,7 @@
 <script>
 (() => {
   const $ = (s) => document.querySelector(s);
-  const PANEL_SURUM = "0.5.0"; // kalkan/main.py içindeki SURUM ile aynı olmalı
+  const PANEL_SURUM = "0.6.0"; // kalkan/main.py içindeki SURUM ile aynı olmalı
   const SEVIYE = { guvenli: "Güvenli", supheli: "Şüpheli", tehlikeli: "Tehlikeli", hata: "Okunamadı" };
   const KATEGORI = { temiz: "Temiz", phishing: "Oltalama (phishing)", spam: "Spam", zararli: "Zararlı yazılım", supheli: "Şüpheli" };
   const TUR = { eposta: "E-posta", sms: "SMS", url: "Bağlantı", dosya: "Dosya", sayfa: "Sayfa", gorsel: "Görsel", baslangic: "Başlangıç öğesi" };
@@ -445,11 +461,34 @@
   }
 
   function tokenSor() { $("#tokenKutusu").classList.remove("gizli"); $("#tokenGir").focus(); }
-  $("#tokenKaydet").onclick = () => {
+  $("#tokenKaydet").onclick = async () => {
     token = $("#tokenGir").value.trim();
     try { localStorage.setItem("kalkan_token", token); } catch (_) {}
-    $("#tokenKutusu").classList.add("gizli");
-    baslat();
+    try {
+      await fetch("/api/oturum", { method: "POST", headers: { "X-Kalkan-Token": token } }).then((r) => { if (!r.ok) throw new Error(); });
+      $("#tokenKutusu").classList.add("gizli");
+      baslat();
+    } catch (_) { alert("Anahtar geçersiz."); }
+  };
+
+
+  // ---------- Eklenti anahtarı ----------
+  $("#eklentiAnahtarAc").onclick = async () => {
+    try {
+      const j = await api("/api/eklenti/anahtar");
+      $("#anahtarMetin").value = j.anahtar;
+      $("#anahtarBilgi").textContent = "";
+      $("#anahtarKutusu").classList.remove("gizli");
+      $("#anahtarMetin").select();
+    } catch (e) { alert("Anahtar alınamadı: " + e.message); }
+  };
+  $("#anahtarKapat").onclick = () => { $("#anahtarKutusu").classList.add("gizli"); $("#anahtarMetin").value = ""; };
+  $("#anahtarKopyala").onclick = async () => {
+    const m = $("#anahtarMetin");
+    m.select();
+    let ok = false;
+    try { await navigator.clipboard.writeText(m.value); ok = true; } catch (_) { ok = document.execCommand && document.execCommand("copy"); }
+    $("#anahtarBilgi").textContent = ok ? "Kopyalandı ✓" : "Seçili, ⌘C ile kopyalayın";
   };
 
   // ---------- Görünümler ----------
@@ -632,7 +671,7 @@
   let istatZamanlayici = null;
   function akisBaglan() {
     if (kaynak) kaynak.close();
-    kaynak = new EventSource("/api/olaylar" + (token ? "?token=" + encodeURIComponent(token) : ""));
+    kaynak = new EventSource("/api/olaylar"); // anahtar oturum çereziyle gider (adres satırında değil)
     kaynak.onmessage = (e) => {
       const olay = JSON.parse(e.data);
       if (olay.tip === "sistem_tarama") {
@@ -1149,7 +1188,6 @@
   // ---------- Başlangıç ----------
   async function durumYukle() {
     const d = await api("/api/durum");
-    if (d.token_gerekli && !token) tokenSor();
     // Panel dosyası her istekte diskten okunur, Python kodu ise sunucu açılırken yüklenir. Kod güncellenip
     // sunucu yeniden başlatılmazsa yeni bölümler "Not Found" alır; bunu sessiz bırakmadan söyleriz.
     if (d.surum !== PANEL_SURUM) {
@@ -1174,7 +1212,6 @@
   async function baslat() {
     try {
       const d = await durumYukle();
-      if (d.token_gerekli && !token) return;
       kayitlar = await api("/api/gecmis?limit=200");
       akisCiz(); istatistikYukle(); akisBaglan();
       const h = location.hash.slice(1);

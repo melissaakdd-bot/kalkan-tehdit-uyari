@@ -36,7 +36,31 @@ def _bool(name: str, default: bool = False) -> bool:
 
 
 # Panel erişimi: tanımlıysa her istek X-Kalkan-Token başlığı (SSE için ?token=) ister.
-PANEL_TOKEN = os.getenv("KALKAN_TOKEN", "")
+def _erisim_anahtari() -> str:
+    """KALKAN_TOKEN tanımlı değilse ilk açılışta rastgele bir anahtar üretip yalnızca kullanıcının okuyabileceği
+    bir dosyada saklar. Böylece bilgisayardaki başka programlar ve web siteleri Kalkan'a komut gönderemez."""
+    ortam = os.getenv("KALKAN_TOKEN", "").strip()
+    if ortam:
+        return ortam
+    yol = DATA_DIR / "erisim_anahtari"
+    try:
+        mevcut = yol.read_text(encoding="utf-8").strip()
+        if len(mevcut) >= 32:
+            return mevcut
+    except FileNotFoundError:
+        pass
+    import secrets
+
+    anahtar = secrets.token_urlsafe(32)
+    fd = os.open(yol, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(anahtar)
+    return anahtar
+
+
+PANEL_TOKEN = _erisim_anahtari()
+# Sunucu yalnızca bu adlarla gelen isteklere yanıt verir (DNS rebinding saldırısına karşı)
+IZINLI_HOSTLAR = {h.strip().lower() for h in os.getenv("KALKAN_IZINLI_HOSTLAR", "127.0.0.1,localhost,[::1]").split(",") if h.strip()}
 
 # Uyarı eşikleri (0-100 risk puanı)
 SUPHELI_ESIK = int(os.getenv("KALKAN_SUPHELI_ESIK", "30"))
