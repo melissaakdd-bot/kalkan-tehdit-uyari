@@ -1,4 +1,4 @@
-const VARSAYILAN = { sunucu: "http://127.0.0.1:8765", token: "", aktif: true, indirmeler: true };
+const VARSAYILAN = { sunucu: "http://127.0.0.1:8790", token: "", aktif: true, indirmeler: true };
 const SEVIYE = { tehlikeli: "Tehlikeli", supheli: "Şüpheli", guvenli: "Sorun bulunmadı" };
 const KATEGORI = { phishing: "Oltalama (phishing)", spam: "Spam", zararli: "Zararlı yazılım", supheli: "Şüpheli içerik" };
 

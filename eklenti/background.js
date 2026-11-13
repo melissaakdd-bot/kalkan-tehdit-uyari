@@ -2,7 +2,7 @@
 // Sayfa ve indirme taramalarını yerel Kalkan sunucusuna iletir, sonuca göre rozet, bildirim ve uyarı gösterir.
 // Veriler yalnızca ayarlardaki sunucuya (varsayılan 127.0.0.1) gönderilir.
 
-const VARSAYILAN = { sunucu: "http://127.0.0.1:8765", token: "", aktif: true, indirmeler: true };
+const VARSAYILAN = { sunucu: "http://127.0.0.1:8790", token: "", aktif: true, indirmeler: true };
 const ONBELLEK_MS = 10 * 60 * 1000;
 const onbellek = new Map(); // url -> { sonuc, zaman }
 const bildirilen = new Map(); // host -> zaman (aynı site için 30 dk'da bir bildirim)

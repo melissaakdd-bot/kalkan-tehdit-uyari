@@ -446,6 +446,36 @@ class UygulamaKaldirmaTest(unittest.TestCase):
         self.assertTrue((self.apps / "Notlarim.app").exists())
 
 
+class MacUygulamaPaketiTest(unittest.TestCase):
+    """Kalkan.app geçici klasöre oluşturulur; launchctl çağrılmaz, gerçek ~/Applications'a dokunulmaz."""
+
+    def test_uygulama_ve_servis_dosyalari(self):
+        import plistlib
+        import platform
+        from pathlib import Path
+        from kalkan import kur_mac
+        if platform.system() != "Darwin":
+            self.skipTest("yalnızca macOS")
+        d = Path(tempfile.mkdtemp(prefix="kalkan-app-"))
+        yollar = {"app": d / "Applications" / "Kalkan.app", "plist": d / "LaunchAgents" / "kalkan.plist", "log": d / "Logs"}
+        kur_mac.kur(yollar, servis=False)
+        app = yollar["app"]
+        info = plistlib.load(open(app / "Contents" / "Info.plist", "rb"))
+        self.assertEqual((info["CFBundleExecutable"], info["CFBundleIdentifier"]), ("Kalkan", "com.yapayzekaokulum.kalkan"))
+        for betik in ("Kalkan", "kalkan-sunucu"):
+            yol = app / "Contents" / "MacOS" / betik
+            self.assertTrue(os.access(yol, os.X_OK), betik)
+            self.assertIn("-m kalkan.", yol.read_text())
+        servis = plistlib.load(open(yollar["plist"], "rb"))
+        self.assertTrue(servis["RunAtLoad"])
+        self.assertEqual(servis["ProgramArguments"], [str(app / "Contents" / "MacOS" / "kalkan-sunucu")])
+        if "CFBundleIconFile" in info:
+            self.assertTrue((app / "Contents" / "Resources" / "Kalkan.icns").stat().st_size > 1000)
+        # Kalkan kendi başlangıç öğesini zararlı saymamalı
+        from kalkan.sistem_tarama import baslangic_ogesi_analiz
+        self.assertIsNone(baslangic_ogesi_analiz(yollar["plist"]))
+
+
 class BaskaSiteKorumaTest(unittest.TestCase):
     def test_dis_siteden_gelen_degisiklik_istegi_reddedilir(self):
         from fastapi.testclient import TestClient

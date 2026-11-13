@@ -6,3 +6,4 @@ anthropic
 opencv-python-headless
 # İsteğe bağlı: ekran görüntüsündeki yazıyı okumak için ayrıca Tesseract programı gerekir (README)
 pytesseract
+pywebview; sys_platform == "darwin"

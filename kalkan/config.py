@@ -63,6 +63,9 @@ ALERT_WEBHOOK_URL = os.getenv("KALKAN_WEBHOOK_URL", "")  # Slack/Teams uyumlu {"
 # Tarayıcı eklentisinin indirdiği dosyalar yalnızca bu klasörden okunabilir
 INDIRME_DIZINI = os.getenv("KALKAN_INDIRME_DIZINI", str(Path.home() / "Downloads"))
 
+# Masaüstü uygulamasının (Kalkan.app) kullandığı sabit yerel port
+PORT = int(os.getenv("KALKAN_PORT", "8790"))
+
 # Otomatik bilgisayar taraması (hızlı tarama) aralığı, saat. 0 kapatır.
 OTOMATIK_TARAMA_SAAT = float(os.getenv("KALKAN_OTOMATIK_TARAMA_SAAT", "24"))
 # Karantinaya alınan dosyaların taşındığı klasör

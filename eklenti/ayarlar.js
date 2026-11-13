@@ -1,4 +1,4 @@
-const VARSAYILAN = { sunucu: "http://127.0.0.1:8765", token: "" };
+const VARSAYILAN = { sunucu: "http://127.0.0.1:8790", token: "" };
 
 (async () => {
   const a = Object.assign({}, VARSAYILAN, await chrome.storage.sync.get(Object.keys(VARSAYILAN)));

@@ -53,12 +53,39 @@ Panel: http://127.0.0.1:8765. API belgeleri: http://127.0.0.1:8765/docs
 
 Gerçek veriyle eğitilmiş modeller depoyla birlikte gelir (`kalkan/ml/modeller/`), ayrıca eğitim gerekmez.
 
+## Kalkan.app (macOS): terminal ve localhost olmadan
+
+Kurulumdan sonra tek komutla Kalkan bir Mac uygulamasına dönüşür:
+
+```bash
+.venv/bin/python -m kalkan.kur_mac kur
+```
+
+- **Kalkan.app:** `~/Applications/Kalkan.app` oluşturulur. Spotlight'tan (⌘ Boşluk → "Kalkan") ya da Finder → Uygulamalar'dan açılır, panel kendi penceresinde görünür. Dock'ta tutmak için simgeye sağ tıklayıp Seçenekler → Dock'ta Tut'u seçin.
+- **Arka plan servisi:** Oturum açılınca kendiliğinden başlar. Pencere kapalıyken de Chrome eklentisi korumaya ve günlük otomatik tarama çalışmaya devam eder. Çökerse yeniden başlar.
+- **Ücretsiz, imza gerekmez:** Uygulama bu bilgisayarda oluşturulduğu için Gatekeeper uyarısı çıkmaz. Yönetici izni gerekmez.
+- **Port:** Servis `http://127.0.0.1:8790` adresinde çalışır. Chrome eklentisinin varsayılan adresi de budur.
+- **İzinler:** Bilgisayar taraması ilk kez Masaüstü, Belgeler ya da İndirilenler'e eriştiğinde macOS izin isteyebilir. İzin penceresinde "Python" yazar, çünkü servis Python ile çalışır. Panel erişilemeyen klasörleri ayrıca gösterir.
+- **Kayıtlar:** `~/Library/Logs/Kalkan/sunucu.log`
+
+Diğer komutlar:
+
+```bash
+.venv/bin/python -m kalkan.kur_mac durum
+```
+
+```bash
+.venv/bin/python -m kalkan.kur_mac kaldir
+```
+
+`kaldir` servisi durdurur ve uygulamayı Çöp Kutusu'na taşır. Tarama geçmişi ve karantina korunur. Kod güncellendiğinde ya da proje klasörü taşındığında `kur` komutunu yeniden çalıştırın.
+
 ## Chrome eklentisi (otomatik koruma)
 
 1. Kalkan sunucusunu başlatın (yukarıdaki komut).
 2. Chrome'da `chrome://extensions` adresini açın ve sağ üstten **Geliştirici modu**'nu açın.
 3. **Paketlenmemiş öğe yükle** düğmesine basıp bu depodaki `eklenti` klasörünü seçin.
-4. Sunucuyu 8765 dışında bir portta çalıştırıyorsanız eklenti simgesi → **Ayarlar**'dan adresi girin (ör. `http://127.0.0.1:8766`).
+4. Kalkan.app kullanıyorsanız ayar gerekmez (varsayılan `http://127.0.0.1:8790`). Sunucuyu elle başka bir portta çalıştırıyorsanız eklenti simgesi → **Ayarlar**'dan adresi girin.
 
 Bundan sonra açtığınız her sayfa otomatik taranır. Eklenti simgesindeki rozet sonucu gösterir:
 - **!** (kırmızı): tehlikeli
