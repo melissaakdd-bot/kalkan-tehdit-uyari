@@ -36,17 +36,44 @@ def _bool(name: str, default: bool = False) -> bool:
 
 
 # Panel erişimi: tanımlıysa her istek X-Kalkan-Token başlığı (SSE için ?token=) ister.
-PANEL_TOKEN = os.getenv("KALKAN_TOKEN", "")
+def _erisim_anahtari() -> str:
+    """KALKAN_TOKEN tanımlı değilse ilk açılışta rastgele bir anahtar üretip yalnızca kullanıcının okuyabileceği
+    bir dosyada saklar. Böylece bilgisayardaki başka programlar ve web siteleri Kalkan'a komut gönderemez."""
+    ortam = os.getenv("KALKAN_TOKEN", "").strip()
+    if ortam:
+        return ortam
+    yol = DATA_DIR / "erisim_anahtari"
+    try:
+        mevcut = yol.read_text(encoding="utf-8").strip()
+        if len(mevcut) >= 32:
+            return mevcut
+    except FileNotFoundError:
+        pass
+    import secrets
+
+    anahtar = secrets.token_urlsafe(32)
+    fd = os.open(yol, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(anahtar)
+    return anahtar
+
+
+PANEL_TOKEN = _erisim_anahtari()
+# Sunucu yalnızca bu adlarla gelen isteklere yanıt verir (DNS rebinding saldırısına karşı)
+IZINLI_HOSTLAR = {h.strip().lower() for h in os.getenv("KALKAN_IZINLI_HOSTLAR", "127.0.0.1,localhost,[::1]").split(",") if h.strip()}
 
 # Uyarı eşikleri (0-100 risk puanı)
 SUPHELI_ESIK = int(os.getenv("KALKAN_SUPHELI_ESIK", "30"))
 TEHLIKELI_ESIK = int(os.getenv("KALKAN_TEHLIKELI_ESIK", "60"))
 
-# ML modeli kural sinyali olmadan tek başına uyarı üretebilsin mi? Kendi verinizle eğitip doğruladıktan sonra açın.
-ML_TEK_BASINA = _bool("KALKAN_ML_TEK_BASINA", False)
+# Metin modeli bu tehdit olasılığının üstünde bulgu ekler (testte %80 eşiğinde TR e-postada yanlış alarm %2,8)
+METIN_ML_ESIK = float(os.getenv("KALKAN_METIN_ML_ESIK", "0.8"))
+# URL modeli bu olasılığın üstünde açıklamalı bir bulgu ekler (testte %90 eşiğinde yanlış alarm %0,3)
+URL_ML_ESIK = float(os.getenv("KALKAN_URL_ML_ESIK", "0.9"))
 
 # Dosya yükleme sınırı
 MAX_DOSYA_MB = int(os.getenv("KALKAN_MAX_DOSYA_MB", "25"))
+MAX_TOPLU_MB = int(os.getenv("KALKAN_MAX_TOPLU_MB", "200"))
 
 # LLM katmanı varsayılan olarak kapalı: içerik dış servise gider, KVKK değerlendirmesi gerekir.
 LLM_ENABLED = _bool("KALKAN_LLM", False)
@@ -56,6 +83,21 @@ LLM_MAX_CHARS = int(os.getenv("KALKAN_LLM_MAX_CHARS", "40000"))
 # İsteğe bağlı dış servisler
 VIRUSTOTAL_API_KEY = os.getenv("VIRUSTOTAL_API_KEY", "")
 ALERT_WEBHOOK_URL = os.getenv("KALKAN_WEBHOOK_URL", "")  # Slack/Teams uyumlu {"text": ...}
+
+# Tarayıcı eklentisinin indirdiği dosyalar yalnızca bu klasörden okunabilir
+INDIRME_DIZINI = os.getenv("KALKAN_INDIRME_DIZINI", str(Path.home() / "Downloads"))
+
+# Masaüstü uygulamasının (Kalkan.app) kullandığı sabit yerel port
+PORT = int(os.getenv("KALKAN_PORT", "8790"))
+
+# Otomatik bilgisayar taraması (hızlı tarama) aralığı, saat. 0 kapatır.
+OTOMATIK_TARAMA_SAAT = float(os.getenv("KALKAN_OTOMATIK_TARAMA_SAAT", "24"))
+# Karantinaya alınan dosyaların taşındığı klasör
+KARANTINA_DIR = Path(os.getenv("KALKAN_KARANTINA_DIR", str(Path.home() / ".kalkan" / "karantina")))
+
+# Uygulama yöneticisi (macOS): taranan uygulama klasörleri ve artıkların aranacağı Library
+UYGULAMA_DIZINLERI = [p for p in os.getenv("KALKAN_UYGULAMA_DIZINLERI", "/Applications:~/Applications").split(":") if p]
+KULLANICI_LIBRARY = os.getenv("KALKAN_KULLANICI_LIBRARY", str(Path.home() / "Library"))
 
 # İzleyiciler
 WATCH_DIR = os.getenv("KALKAN_WATCH_DIR", "")

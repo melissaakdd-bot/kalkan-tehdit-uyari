@@ -1,0 +1,522 @@
+{
+ "metrikler": {
+  "eposta": {
+   "kural": {
+    "tp": 239,
+    "fp": 24,
+    "tn": 821,
+    "fn": 394,
+    "dogruluk": 0.7172,
+    "kesinlik": 0.9087,
+    "tespit_orani": 0.3776,
+    "yanlis_alarm": 0.0284,
+    "f1": 0.5335
+   },
+   "ml": {
+    "tp": 621,
+    "fp": 17,
+    "tn": 828,
+    "fn": 12,
+    "dogruluk": 0.9804,
+    "kesinlik": 0.9734,
+    "tespit_orani": 0.981,
+    "yanlis_alarm": 0.0201,
+    "f1": 0.9772
+   },
+   "hibrit": {
+    "tp": 609,
+    "fp": 26,
+    "tn": 819,
+    "fn": 24,
+    "dogruluk": 0.9662,
+    "kesinlik": 0.9591,
+    "tespit_orani": 0.9621,
+    "yanlis_alarm": 0.0308,
+    "f1": 0.9606
+   }
+  },
+  "eposta:nazario": {
+   "kural": {
+    "tp": 196,
+    "fp": 0,
+    "tn": 0,
+    "fn": 207,
+    "dogruluk": 0.4864,
+    "kesinlik": 1.0,
+    "tespit_orani": 0.4864,
+    "yanlis_alarm": null,
+    "f1": 0.6545
+   },
+   "ml": {
+    "tp": 397,
+    "fp": 0,
+    "tn": 0,
+    "fn": 6,
+    "dogruluk": 0.9851,
+    "kesinlik": 1.0,
+    "tespit_orani": 0.9851,
+    "yanlis_alarm": null,
+    "f1": 0.9925
+   },
+   "hibrit": {
+    "tp": 392,
+    "fp": 0,
+    "tn": 0,
+    "fn": 11,
+    "dogruluk": 0.9727,
+    "kesinlik": 1.0,
+    "tespit_orani": 0.9727,
+    "yanlis_alarm": null,
+    "f1": 0.9862
+   }
+  },
+  "eposta:spamassassin": {
+   "kural": {
+    "tp": 32,
+    "fp": 14,
+    "tn": 724,
+    "fn": 120,
+    "dogruluk": 0.8494,
+    "kesinlik": 0.6957,
+    "tespit_orani": 0.2105,
+    "yanlis_alarm": 0.019,
+    "f1": 0.3232
+   },
+   "ml": {
+    "tp": 147,
+    "fp": 3,
+    "tn": 735,
+    "fn": 5,
+    "dogruluk": 0.991,
+    "kesinlik": 0.98,
+    "tespit_orani": 0.9671,
+    "yanlis_alarm": 0.0041,
+    "f1": 0.9735
+   },
+   "hibrit": {
+    "tp": 145,
+    "fp": 14,
+    "tn": 724,
+    "fn": 7,
+    "dogruluk": 0.9764,
+    "kesinlik": 0.9119,
+    "tespit_orani": 0.9539,
+    "yanlis_alarm": 0.019,
+    "f1": 0.9324
+   }
+  },
+  "sms": {
+   "kural": {
+    "tp": 9,
+    "fp": 0,
+    "tn": 1423,
+    "fn": 190,
+    "dogruluk": 0.8829,
+    "kesinlik": 1.0,
+    "tespit_orani": 0.0452,
+    "yanlis_alarm": 0.0,
+    "f1": 0.0865
+   },
+   "ml": {
+    "tp": 194,
+    "fp": 4,
+    "tn": 1419,
+    "fn": 5,
+    "dogruluk": 0.9945,
+    "kesinlik": 0.9798,
+    "tespit_orani": 0.9749,
+    "yanlis_alarm": 0.0028,
+    "f1": 0.9773
+   },
+   "hibrit": {
+    "tp": 187,
+    "fp": 0,
+    "tn": 1423,
+    "fn": 12,
+    "dogruluk": 0.9926,
+    "kesinlik": 1.0,
+    "tespit_orani": 0.9397,
+    "yanlis_alarm": 0.0,
+    "f1": 0.9689
+   }
+  },
+  "sms:uci_sms_en": {
+   "kural": {
+    "tp": 9,
+    "fp": 0,
+    "tn": 1423,
+    "fn": 190,
+    "dogruluk": 0.8829,
+    "kesinlik": 1.0,
+    "tespit_orani": 0.0452,
+    "yanlis_alarm": 0.0,
+    "f1": 0.0865
+   },
+   "ml": {
+    "tp": 194,
+    "fp": 4,
+    "tn": 1419,
+    "fn": 5,
+    "dogruluk": 0.9945,
+    "kesinlik": 0.9798,
+    "tespit_orani": 0.9749,
+    "yanlis_alarm": 0.0028,
+    "f1": 0.9773
+   },
+   "hibrit": {
+    "tp": 187,
+    "fp": 0,
+    "tn": 1423,
+    "fn": 12,
+    "dogruluk": 0.9926,
+    "kesinlik": 1.0,
+    "tespit_orani": 0.9397,
+    "yanlis_alarm": 0.0,
+    "f1": 0.9689
+   }
+  },
+  "eposta:uci_tr_spam": {
+   "kural": {
+    "tp": 11,
+    "fp": 10,
+    "tn": 97,
+    "fn": 67,
+    "dogruluk": 0.5838,
+    "kesinlik": 0.5238,
+    "tespit_orani": 0.141,
+    "yanlis_alarm": 0.0935,
+    "f1": 0.2222
+   },
+   "ml": {
+    "tp": 77,
+    "fp": 14,
+    "tn": 93,
+    "fn": 1,
+    "dogruluk": 0.9189,
+    "kesinlik": 0.8462,
+    "tespit_orani": 0.9872,
+    "yanlis_alarm": 0.1308,
+    "f1": 0.9113
+   },
+   "hibrit": {
+    "tp": 72,
+    "fp": 12,
+    "tn": 95,
+    "fn": 6,
+    "dogruluk": 0.9027,
+    "kesinlik": 0.8571,
+    "tespit_orani": 0.9231,
+    "yanlis_alarm": 0.1121,
+    "f1": 0.8889
+   }
+  },
+  "url": {
+   "kural": {
+    "tp": 468,
+    "fp": 5,
+    "tn": 5952,
+    "fn": 4515,
+    "dogruluk": 0.5868,
+    "kesinlik": 0.9894,
+    "tespit_orani": 0.0939,
+    "yanlis_alarm": 0.0008,
+    "f1": 0.1715
+   },
+   "ml": {
+    "tp": 3756,
+    "fp": 574,
+    "tn": 5215,
+    "fn": 1158,
+    "dogruluk": 0.8382,
+    "kesinlik": 0.8674,
+    "tespit_orani": 0.7643,
+    "yanlis_alarm": 0.0992,
+    "f1": 0.8126
+   },
+   "hibrit": {
+    "tp": 2644,
+    "fp": 22,
+    "tn": 5935,
+    "fn": 2339,
+    "dogruluk": 0.7842,
+    "kesinlik": 0.9917,
+    "tespit_orani": 0.5306,
+    "yanlis_alarm": 0.0037,
+    "f1": 0.6913
+   }
+  },
+  "url:phiusiil": {
+   "kural": {
+    "tp": 468,
+    "fp": 5,
+    "tn": 5952,
+    "fn": 4515,
+    "dogruluk": 0.5868,
+    "kesinlik": 0.9894,
+    "tespit_orani": 0.0939,
+    "yanlis_alarm": 0.0008,
+    "f1": 0.1715
+   },
+   "ml": {
+    "tp": 3756,
+    "fp": 574,
+    "tn": 5215,
+    "fn": 1158,
+    "dogruluk": 0.8382,
+    "kesinlik": 0.8674,
+    "tespit_orani": 0.7643,
+    "yanlis_alarm": 0.0992,
+    "f1": 0.8126
+   },
+   "hibrit": {
+    "tp": 2644,
+    "fp": 22,
+    "tn": 5935,
+    "fn": 2339,
+    "dogruluk": 0.7842,
+    "kesinlik": 0.9917,
+    "tespit_orani": 0.5306,
+    "yanlis_alarm": 0.0037,
+    "f1": 0.6913
+   }
+  }
+ },
+ "kategori_dogrulugu": {
+  "eposta": 0.9885,
+  "sms": 1.0,
+  "url": 1.0
+ },
+ "sinyaller": {
+  "eposta:phishing": {
+   "_toplam": 403,
+   "ml_metin": 385,
+   "unlem": 32,
+   "reply_to_farkli": 52,
+   "aciliyet": 71,
+   "hesap_tehdidi": 21,
+   "riskli_baglanti": 141,
+   "baglanti_ve_talep": 87,
+   "kimlik_bilgisi": 60,
+   "pazarlama": 47,
+   "spf_fail": 44,
+   "odeme_talebi": 15,
+   "gorunen_ad_taklidi": 14,
+   "odul_vaadi": 7,
+   "marka_baglanti_uyumsuz": 10,
+   "yatirim_dolandiriciligi": 2,
+   "dmarc_fail": 5,
+   "dkim_fail": 4,
+   "ucretsiz_posta_kurum": 1,
+   "riskli_ek": 2,
+   "buyuk_harf": 1
+  },
+  "eposta:temiz": {
+   "_toplam": 845,
+   "pazarlama": 43,
+   "kimlik_bilgisi": 6,
+   "odul_vaadi": 40,
+   "baglanti_ve_talep": 8,
+   "riskli_baglanti": 5,
+   "zararli_ek": 3,
+   "unlem": 35,
+   "reply_to_farkli": 1,
+   "aciliyet": 37,
+   "kredi_bahis": 4,
+   "odeme_talebi": 3,
+   "marka_baglanti_uyumsuz": 6,
+   "buyuk_harf": 6,
+   "ml_metin": 3,
+   "hesap_tehdidi": 4,
+   "uzaktan_erisim": 1,
+   "yatirim_dolandiriciligi": 1
+  },
+  "eposta:spam": {
+   "unlem": 84,
+   "riskli_baglanti": 34,
+   "ml_metin": 213,
+   "_toplam": 230,
+   "kimlik_bilgisi": 5,
+   "baglanti_ve_talep": 6,
+   "pazarlama": 48,
+   "buyuk_harf": 7,
+   "odul_vaadi": 10,
+   "aciliyet": 34,
+   "kredi_bahis": 8,
+   "reply_to_farkli": 4,
+   "odeme_talebi": 5,
+   "riskli_ek": 1,
+   "zararli_ek": 1,
+   "hesap_tehdidi": 1,
+   "marka_baglanti_uyumsuz": 1
+  },
+  "sms:temiz": {
+   "_toplam": 1423,
+   "buyuk_harf": 32,
+   "odeme_talebi": 1,
+   "odul_vaadi": 3,
+   "unlem": 4,
+   "kredi_bahis": 1,
+   "aciliyet": 3
+  },
+  "sms:spam": {
+   "ml_metin": 187,
+   "_toplam": 199,
+   "unlem": 3,
+   "aciliyet": 16,
+   "odul_vaadi": 26,
+   "kredi_bahis": 7,
+   "pazarlama": 4,
+   "riskli_baglanti": 4,
+   "buyuk_harf": 5,
+   "yatirim_dolandiriciligi": 1
+  },
+  "url:temiz": {
+   "_toplam": 5957,
+   "ml_url": 17,
+   "cok_alt_alan": 78,
+   "marka_taklidi": 3,
+   "supheli_tld": 6,
+   "hassas_yol": 8,
+   "cok_tire": 5,
+   "yazim_taklidi": 2
+  },
+  "url:phishing": {
+   "supheli_tld": 509,
+   "sifresiz": 2555,
+   "ml_url": 2559,
+   "_toplam": 4983,
+   "cok_alt_alan": 274,
+   "hassas_yol": 338,
+   "kullanici_icerigi": 1280,
+   "cok_tire": 271,
+   "uzun_url": 131,
+   "marka_taklidi": 81,
+   "ip_host": 28,
+   "kisaltici": 38,
+   "yonlendirme": 16,
+   "punycode": 8,
+   "at_isareti": 2,
+   "yazim_taklidi": 2
+  }
+ },
+ "ortalama_ms": 2.58,
+ "ornek_sayisi": 14040,
+ "etiket": "sonra",
+ "tarih": "2026-11-11 10:40",
+ "veri_ozeti": [
+  {
+   "kaynak": "nazario",
+   "etiket": "phishing",
+   "bolum": "egitim",
+   "sayi": 419
+  },
+  {
+   "kaynak": "nazario",
+   "etiket": "phishing",
+   "bolum": "test",
+   "sayi": 403
+  },
+  {
+   "kaynak": "phiusiil",
+   "etiket": "phishing",
+   "bolum": "egitim",
+   "sayi": 11709
+  },
+  {
+   "kaynak": "phiusiil",
+   "etiket": "phishing",
+   "bolum": "test",
+   "sayi": 4983
+  },
+  {
+   "kaynak": "phiusiil",
+   "etiket": "temiz",
+   "bolum": "egitim",
+   "sayi": 14043
+  },
+  {
+   "kaynak": "phiusiil",
+   "etiket": "temiz",
+   "bolum": "test",
+   "sayi": 5957
+  },
+  {
+   "kaynak": "spamassassin",
+   "etiket": "spam",
+   "bolum": "egitim",
+   "sayi": 348
+  },
+  {
+   "kaynak": "spamassassin",
+   "etiket": "spam",
+   "bolum": "test",
+   "sayi": 152
+  },
+  {
+   "kaynak": "spamassassin",
+   "etiket": "temiz",
+   "bolum": "egitim",
+   "sayi": 1762
+  },
+  {
+   "kaynak": "spamassassin",
+   "etiket": "temiz",
+   "bolum": "test",
+   "sayi": 738
+  },
+  {
+   "kaynak": "uci_sms_en",
+   "etiket": "spam",
+   "bolum": "egitim",
+   "sayi": 548
+  },
+  {
+   "kaynak": "uci_sms_en",
+   "etiket": "spam",
+   "bolum": "test",
+   "sayi": 199
+  },
+  {
+   "kaynak": "uci_sms_en",
+   "etiket": "temiz",
+   "bolum": "egitim",
+   "sayi": 3404
+  },
+  {
+   "kaynak": "uci_sms_en",
+   "etiket": "temiz",
+   "bolum": "test",
+   "sayi": 1423
+  },
+  {
+   "kaynak": "uci_tr_spam",
+   "etiket": "spam",
+   "bolum": "egitim",
+   "sayi": 206
+  },
+  {
+   "kaynak": "uci_tr_spam",
+   "etiket": "spam",
+   "bolum": "test",
+   "sayi": 78
+  },
+  {
+   "kaynak": "uci_tr_spam",
+   "etiket": "temiz",
+   "bolum": "egitim",
+   "sayi": 310
+  },
+  {
+   "kaynak": "uci_tr_spam",
+   "etiket": "temiz",
+   "bolum": "test",
+   "sayi": 107
+  }
+ ],
+ "egitim": null,
+ "ayarlar": {
+  "supheli_esik": 30,
+  "metin_ml_esik": 0.8,
+  "url_ml_esik": 0.9
+ }
+}

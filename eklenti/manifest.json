@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Kalkan Koruma",
+  "version": "0.2.0",
+  "description": "Açtığınız sayfaları ve indirdiğiniz dosyaları yerel Kalkan sunucusuyla otomatik tarar, tehlikede uyarır.",
+  "permissions": ["storage", "notifications", "downloads", "tabs"],
+  "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Kalkan",
+    "default_icon": { "16": "ikon16.png", "48": "ikon48.png", "128": "ikon128.png" }
+  },
+  "options_page": "ayarlar.html",
+  "icons": { "16": "ikon16.png", "48": "ikon48.png", "128": "ikon128.png" }
+}

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Kalkan Ayarları</title>
+<style>
+  :root { --ink:#16181d; --muted:#646b78; --line:#e2e5ea; --bg:#f5f6f8; --panel:#fff; --accent:#2c5cdd; }
+  @media (prefers-color-scheme: dark) { :root { --ink:#e8eaee; --muted:#9aa2af; --line:#2a2f38; --bg:#101216; --panel:#181b21; --accent:#7c9cff; } }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:560px; margin:32px auto; padding:0 16px; }
+  .kart { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; }
+  label { display:block; font-weight:600; margin:14px 0 4px; }
+  input[type=text], input[type=password] { width:100%; box-sizing:border-box; padding:9px 11px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font:14px ui-monospace,Menlo,monospace; }
+  .ipucu { color:var(--muted); font-size:13px; margin-top:4px; }
+  button { margin-top:18px; background:var(--accent); color:#fff; border:0; border-radius:8px; padding:9px 18px; font:600 14px sans-serif; cursor:pointer; }
+  #bilgi { margin-left:10px; color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🛡️ Kalkan Koruma ayarları</h1>
+  <div class="kart">
+    <label for="sunucu">Kalkan sunucusu</label>
+    <input type="text" id="sunucu" placeholder="http://127.0.0.1:8790">
+    <div class="ipucu">Kalkan'ı hangi portta başlattıysanız onu yazın (Kalkan.app: http://127.0.0.1:8790). Yalnızca bu bilgisayardaki sunucular desteklenir.</div>
+    <label for="token">Erişim anahtarı</label>
+    <input type="password" id="token" autocomplete="off">
+    <div class="ipucu">Kalkan penceresinin sağ üstündeki <b>🔑 Eklenti anahtarı</b> düğmesinden kopyalayıp buraya yapıştırın. Kalkan bu anahtar olmadan eklentiden gelen istekleri kabul etmez.</div>
+    <button id="kaydet">Kaydet ve bağlantıyı dene</button><span id="bilgi"></span>
+  </div>
+  <p class="ipucu">Gizlilik: Eklenti açtığınız sayfanın adresini, başlığını, görünen metnin ilk 5.000 karakterini ve form bilgisini
+    yalnızca yukarıdaki yerel sunucuya gönderir. Girdiğiniz şifre ve kart bilgileri hiçbir zaman okunmaz. Sunucu temiz sayfaları kaydetmez.</p>
+</main>
+<script src="ayarlar.js"></script>
+</body>
+</html>

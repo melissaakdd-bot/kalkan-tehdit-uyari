@@ -30,6 +30,10 @@ TEHLIKELI_UZANTILAR = {
     "msi", "msp", "lnk", "dll", "cpl", "jar", "apk", "app", "dmg", "pkg", "sh", "iso", "img", "vhd",
     "reg", "chm", "inf", "scf", "one",
 }
+ARSIV_TEHLIKELI = {
+    "exe", "scr", "com", "pif", "bat", "cmd", "vbs", "vbe", "jse", "wsf", "wsh", "hta", "ps1", "msi", "lnk", "cpl",
+    "reg", "scf", "iso", "img", "vhd",
+}
 MAKROLU_UZANTILAR = {"docm", "xlsm", "pptm", "dotm", "xltm", "xlam", "ppam"}
 BELGE_UZANTILARI = {"pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "jpg", "jpeg", "png", "gif", "csv", "rtf"}
 
@@ -55,8 +59,11 @@ UZANTI_BEKLENEN = {
 
 SCRIPT_DESENLERI = [
     (rb"(?i)powershell(\.exe)?\s+.*-(e|enc|encodedcommand)\s", "Kodlanmış PowerShell komutu"),
-    (rb"(?i)\b(iex|invoke-expression)\b", "PowerShell Invoke-Expression"),
-    (rb"(?i)downloadstring|downloadfile|invoke-webrequest|net\.webclient", "İnternetten kod indirme"),
+    # Çıplak "iex" sıkıştırılmış veride rastgele oluşuyordu (gerçek PDF'lerde yanlış alarm); kullanım biçimi aranır
+    (rb"(?i)\binvoke-expression\b|\biex\s*\(|\|\s*iex\b", "PowerShell Invoke-Expression"),
+    # Yalnızca PowerShell'e özgü kullanım: çıplak "downloadFile" JavaScript'te sıradan bir fonksiyon adıdır
+    # (gerçek bir Mac'te TikTok LIVE Studio önbelleğindeki 133 .js dosyası bu yüzden yanlış alarm almıştı)
+    (rb"(?i)net\.webclient\)?\s*\.\s*download(string|file)|invoke-webrequest|start-bitstransfer", "İnternetten kod indirme"),
     (rb"(?i)frombase64string", "Base64 ile gizlenmiş yük"),
     (rb"(?i)wscript\.shell|shell\.application", "Windows Script Host ile komut çalıştırma"),
     (rb"(?i)certutil(\.exe)?\s+.*-(decode|urlcache)", "certutil ile indirme/çözme"),
@@ -145,7 +152,9 @@ def _zip_incele(veri: bytes, bulgular: List[Bulgu]) -> None:
         bulgular.append(Bulgu("sifreli_arsiv", "Şifreli arşiv: antivirüs taramasını atlatmak için sık kullanılır.", 35, "zararli"))
     if any(n.lower().endswith("vbaproject.bin") for n in adlar):
         bulgular.append(Bulgu("office_makro", "Office belgesi VBA makrosu içeriyor.", 45, "zararli"))
-    icteki_tehlikeli = [n for n in adlar if (_uzantilar(os.path.basename(n)) or [""])[-1] in TEHLIKELI_UZANTILAR]
+    # .js / .jar / .sh gibi dosyalar yazılım paketlerinde çok yaygın; yalnızca kullanıcıyı kandırmak için
+    # arşive konan Windows çalıştırılabilirleri ve kısayollar aranır
+    icteki_tehlikeli = [n for n in adlar if (_uzantilar(os.path.basename(n)) or [""])[-1] in ARSIV_TEHLIKELI]
     if icteki_tehlikeli:
         bulgular.append(Bulgu(
             "arsivde_calistirilabilir",
@@ -164,7 +173,14 @@ def _zip_incele(veri: bytes, bulgular: List[Bulgu]) -> None:
                 break
 
 
-def dosya_analiz(veri: bytes, ad: str, kaynak: str = "panel") -> Sonuc:
+def dosya_analiz(veri: bytes, ad: str, kaynak: str = "panel", baglam: str = "ileti") -> Sonuc:
+    """baglam: 'ileti' (e-posta eki, indirme, yükleme) ya da 'sistem' (bilgisayar taraması).
+
+    Sistem taramasında bir dosyanın yalnızca program ya da kurulum dosyası olması şüphe nedeni değildir
+    (İndirilenler'deki .dmg, macOS'taki uzantısız programlar); bu sinyaller bilgi düzeyine iner ve
+    hash'ler toplu olarak VirusTotal'e gönderilmez.
+    """
+    sistem = baglam == "sistem"
     sonuc = Sonuc("dosya", ad[:200], kaynak=kaynak)
     bulgular: List[Bulgu] = []
 
@@ -187,18 +203,21 @@ def dosya_analiz(veri: bytes, ad: str, kaynak: str = "panel") -> Sonuc:
     if re.search(r"\s{5,}\.", ad):
         bulgular.append(Bulgu("bosluk_hilesi", "Uzantı çok sayıda boşlukla gizlenmiş.", 50, "zararli"))
     if son in TEHLIKELI_UZANTILAR:
-        bulgular.append(Bulgu("tehlikeli_uzanti", f".{son} çalıştırılabilir/kod içeren bir dosya türü.", 30, "zararli"))
+        bulgular.append(Bulgu("tehlikeli_uzanti", f".{son} çalıştırılabilir/kod içeren bir dosya türü.", 10 if sistem else 30, "zararli"))
     if son in MAKROLU_UZANTILAR:
-        bulgular.append(Bulgu("makrolu_uzanti", f".{son} makro içerebilen Office biçimi.", 25, "zararli"))
+        bulgular.append(Bulgu("makrolu_uzanti", f".{son} makro içerebilen Office biçimi.", 10 if sistem else 25, "zararli"))
 
     # 3) Gerçek tür ile uzantı uyumu
     tur = _tur_bul(veri)
     sonuc.ek["gercek_tur"] = tur or "bilinmiyor"
     if tur in ("pe", "elf", "macho"):
-        if son in BELGE_UZANTILARI or son == "":
+        # Uzantısız Mach-O/ELF programlar macOS ve Linux'ta olağandır; sistem taramasında yalnızca
+        # belge uzantılı programlar ya da uzantısız Windows programları gizlenmiş sayılır.
+        gizli = son in BELGE_UZANTILARI or (son == "" and (not sistem or tur == "pe"))
+        if gizli:
             bulgular.append(Bulgu("gizli_calistirilabilir", f"İçerik çalıştırılabilir program ({tur}) ama uzantı '.{son}'.", 80, "zararli", kritik=True))
         else:
-            bulgular.append(Bulgu("calistirilabilir", f"Dosya çalıştırılabilir program ({tur}).", 25, "zararli"))
+            bulgular.append(Bulgu("calistirilabilir", f"Dosya çalıştırılabilir program ({tur}).", 5 if sistem else 25, "zararli"))
         ent = _entropi(veri)
         sonuc.ek["entropi"] = round(ent, 2)
         if ent > 7.2:
@@ -228,17 +247,22 @@ def dosya_analiz(veri: bytes, ad: str, kaynak: str = "panel") -> Sonuc:
                 gorulen.add(kod)
                 bulgular.append(Bulgu(kod, aciklama, agirlik, "zararli"))
 
-    # 5) Komut dizisi / davranış desenleri (ilk 5 MB)
+    # 5) Komut dizisi / davranış desenleri (ilk 5 MB). İkili kapsayıcılarda (PDF, arşiv, görsel) içerik
+    # sıkıştırılmıştır ve rastgele baytlar desenlere uyabilir; orada yalnızca makro otomatik çalışma adı aranır.
     parca = veri[:5_000_000]
+    ikili = tur in ("pdf", "zip", "ole", "rar", "7z", "png", "jpg", "gif")
     for desen, aciklama in SCRIPT_DESENLERI:
+        if ikili and not (tur == "ole" and "makro" in aciklama):
+            continue
         if re.search(desen, parca):
             bulgular.append(Bulgu("supheli_kod", f"Şüpheli kod deseni: {aciklama}.", 30, "zararli"))
 
-    # 6) Harici motorlar
-    clam = _clamav(veri)
+    # 6) Harici motorlar. Sistem taramasında dosya başına clamscan (her çağrıda imza veritabanını yükler)
+    # çok yavaştır ve binlerce hash'i VirusTotal'e göndermek hem kota hem gizlilik sorunu olur; atlanır.
+    clam = None if sistem else _clamav(veri)
     if clam:
         bulgular.append(clam)
-    vt = _virustotal(sha256)
+    vt = None if sistem else _virustotal(sha256)
     if vt is not None:
         sonuc.ek["virustotal"] = vt
         kotu = int(vt.get("malicious", 0))

@@ -66,18 +66,13 @@ def seviye_belirle(puan: int, bulgular: List[Bulgu]) -> str:
     return "guvenli"
 
 
-def sonuclandir(sonuc: Sonuc, ml_puan: Optional[float] = None, ml_agirlik: float = 0.4) -> Sonuc:
-    """Kural puanı ile ML olasılığını birleştirir ve seviyeyi belirler."""
-    kural = kural_puani(sonuc.bulgular)
-    if ml_puan is None:
-        puan = kural
-    else:
-        # ML sinyali kural puanını aşağı çekmesin diye ikisinin harmanı ile kuralın büyüğü alınır.
-        harman = (1 - ml_agirlik) * kural + ml_agirlik * ml_puan * 100
-        puan = round(max(kural, harman))
-        # Model kendi verinizle eğitilip doğrulanana kadar, hiç kural sinyali yokken tek başına uyarı üretmesin.
-        if not sonuc.bulgular and not config.ML_TEK_BASINA:
-            puan = min(puan, config.SUPHELI_ESIK - 1)
+def sonuclandir(sonuc: Sonuc) -> Sonuc:
+    """Bulgulardan risk puanını ve seviyeyi belirler.
+
+    ML modelleri de puana doğrudan karışmaz; yüksek güvende açıklamalı bir bulgu (ml_metin, ml_url) ekler.
+    Böylece her uyarının nedeni kullanıcıya gösterilebilir.
+    """
+    puan = kural_puani(sonuc.bulgular)
     if any(b.kritik for b in sonuc.bulgular):
         puan = max(puan, 95)
     sonuc.puan = min(puan, 100)

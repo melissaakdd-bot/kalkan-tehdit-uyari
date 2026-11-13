@@ -9,37 +9,47 @@
     --bg: #f5f6f8; --panel: #ffffff; --ink: #16181d; --muted: #646b78; --line: #e2e5ea;
     --accent: #2c5cdd; --ok: #1d8a4e; --ok-bg: #e6f5ec; --warn: #a86400; --warn-bg: #fdf1dc;
     --bad: #c42b2b; --bad-bg: #fbe5e5; --chip: #eef1f6;
+    /* Grafik tokenları (dataviz referans paleti: durum renkleri + tek ton sıralı mavi) */
+    --viz-surface: #fcfcfb; --viz-grid: #e6e6e3; --viz-axis: #52514e;
+    --st-good: #0ca30c; --st-warning: #fab219; --st-critical: #d03b3b; --seq: #2a78d6;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #101216; --panel: #181b21; --ink: #e8eaee; --muted: #9aa2af; --line: #2a2f38;
       --accent: #7c9cff; --ok: #4cc27f; --ok-bg: #16301f; --warn: #f0b04a; --warn-bg: #33270f;
       --bad: #ff6b6b; --bad-bg: #3a1616; --chip: #232832;
+      --viz-surface: #1a1a19; --viz-grid: #33332f; --viz-axis: #c3c2b7; --seq: #3987e5;
     }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  header { display: flex; align-items: center; gap: 16px; padding: 14px 24px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
-  header h1 { font-size: 18px; margin: 0; letter-spacing: .2px; }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 24px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; }
   header .alt { color: var(--muted); font-size: 13px; }
+  nav.gorunumler { display: flex; gap: 4px; margin-left: 12px; }
+  nav.gorunumler button { background: none; border: 0; padding: 7px 12px; border-radius: 8px; font: inherit; color: var(--muted); cursor: pointer; }
+  nav.gorunumler button.aktif { background: var(--chip); color: var(--ink); font-weight: 600; }
   .durum { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
   .chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 12px; color: var(--muted); }
   .chip.acik { color: var(--ok); }
   main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
-  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 16px; } header { padding: 12px 16px; } }
+  main.genis { grid-template-columns: minmax(0, 1fr); }
+  main.genis #yanPanel { display: none; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 16px; } header { padding: 12px 16px; } nav.gorunumler { margin-left: 0; width: 100%; overflow-x: auto; } }
   .kart { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; min-width: 0; }
   .kart h2 { font-size: 15px; margin: 0 0 12px; }
   .sekmeler { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 14px; overflow-x: auto; }
   .sekmeler button { background: none; border: 0; padding: 8px 14px; font: inherit; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
   .sekmeler button.aktif { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
-  textarea, input[type=text], input[type=password] { width: 100%; font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+  textarea, input[type=text], input[type=password], select { width: 100%; font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+  select { width: auto; font-family: inherit; padding: 6px 10px; }
   textarea { min-height: 180px; resize: vertical; }
   .ipucu { color: var(--muted); font-size: 13px; margin: 6px 0 12px; }
   .satir { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   button.ana { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 9px 18px; font: inherit; font-weight: 600; cursor: pointer; }
   button.ana:disabled { opacity: .55; cursor: progress; }
   button.ikincil { background: var(--chip); color: var(--ink); border: 0; border-radius: 8px; padding: 7px 12px; font: inherit; font-size: 13px; cursor: pointer; }
-  .birak { border: 2px dashed var(--line); border-radius: 10px; padding: 32px 16px; text-align: center; color: var(--muted); cursor: pointer; }
+  .birak { display: block; border: 2px dashed var(--line); border-radius: 10px; padding: 32px 16px; text-align: center; color: var(--muted); cursor: pointer; }
   .birak.uzerinde { border-color: var(--accent); color: var(--accent); }
   .gizli { display: none !important; }
 
@@ -57,8 +67,8 @@
   .sonuc li { margin: 3px 0; }
   .agirlik { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
   .llm { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(127,127,127,.25); }
-  .llm h3, .alt-baslik { font-size: 13px; margin: 0 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
-  .kucuk { font-size: 13px; color: var(--muted); word-break: break-all; }
+  .llm h3, .alt-baslik { font-size: 12px; margin: 0 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .kucuk { font-size: 13px; color: var(--muted); word-break: break-word; }
 
   .istat { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
   .istat div { background: var(--chip); border-radius: 10px; padding: 10px 12px; }
@@ -77,8 +87,71 @@
   .olay .p { font-weight: 700; font-variant-numeric: tabular-nums; }
   .bos { color: var(--muted); text-align: center; padding: 24px; }
   .toast { position: fixed; right: 20px; bottom: 20px; max-width: 360px; background: var(--bad); color: #fff; padding: 12px 16px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.25); z-index: 10; }
-  .toast.supheli { background: var(--warn); }
-  @media (max-width: 480px) { .istat { grid-template-columns: repeat(2, 1fr); } .toast { left: 16px; right: 16px; } }
+  .toast.supheli { background: #a86400; }
+
+  /* Toplu tarama */
+  .ilerleme { height: 8px; background: var(--chip); border-radius: 999px; overflow: hidden; margin: 12px 0 6px; }
+  .ilerleme > div { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  td.sayi, th.sayi { text-align: right; font-variant-numeric: tabular-nums; }
+  .tablo-kap { overflow-x: auto; max-height: 520px; overflow-y: auto; margin-top: 12px; }
+  .etiket { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; font-size: 12px; white-space: nowrap; }
+  .etiket::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .etiket.tehlikeli { color: var(--bad); } .etiket.supheli { color: var(--warn); } .etiket.guvenli { color: var(--ok); } .etiket.hata { color: var(--muted); }
+
+  /* Bilgisayar */
+  .secenekler { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 8px; }
+  @media (max-width: 900px) { .secenekler { grid-template-columns: 1fr; } }
+  .secenek { text-align: left; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px; font: inherit; color: var(--ink); min-width: 0; }
+  button.secenek { cursor: pointer; }
+  button.secenek:hover { border-color: var(--accent); }
+  button.secenek:disabled { opacity: .5; cursor: progress; }
+  .secenek b { display: block; margin-bottom: 3px; }
+  .secenek span { color: var(--muted); font-size: 13px; }
+  .yol { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+  button.ana.tehlike { background: var(--bad); }
+  button.tehlike-cizgi { color: var(--bad); }
+  .islemler { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+  .islemler button { white-space: nowrap; font-size: 12px; padding: 5px 9px; }
+  /* Dar ekranda bulgular tablosu kartlara dönüşür: düğmeler yatay kaydırma olmadan görünür */
+  @media (max-width: 760px) {
+    table.kart-tablo thead { display: none; }
+    table.kart-tablo, table.kart-tablo tbody, table.kart-tablo tr, table.kart-tablo td { display: block; width: 100%; }
+    table.kart-tablo tr { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-bottom: 10px; }
+    table.kart-tablo td { border: 0; padding: 4px 0; max-width: none !important; min-width: 0 !important; text-align: left !important; }
+    table.kart-tablo td[data-ad]::before { content: attr(data-ad); display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+    table.kart-tablo .islemler { flex-direction: row; flex-wrap: wrap; }
+  }
+
+  /* Rapor */
+  .izgara { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 900px) { .izgara { grid-template-columns: 1fr; } .istat { grid-template-columns: repeat(2, 1fr); } }
+  .grafik-kart { background: var(--viz-surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; }
+  .grafik-kart h3 { margin: 0 0 2px; font-size: 14px; }
+  .grafik-kart .aciklama { color: var(--muted); font-size: 12px; margin: 0 0 10px; }
+  .lejant { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-bottom: 6px; flex-wrap: wrap; }
+  .lejant span { display: inline-flex; align-items: center; gap: 6px; }
+  .lejant i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  svg.grafik { width: 100%; height: auto; display: block; overflow: visible; }
+  svg.grafik text { fill: var(--viz-axis); font-size: 11px; font-family: inherit; }
+  .cubuk-liste { display: flex; flex-direction: column; gap: 8px; }
+  .cubuk-satir { display: grid; grid-template-columns: minmax(80px, 34%) 1fr 44px; gap: 10px; align-items: center; font-size: 13px; }
+  .cubuk-satir .ad { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cubuk-satir .iz { height: 14px; position: relative; }
+  .cubuk-satir .iz > div { height: 100%; background: var(--seq); border-radius: 0 4px 4px 0; min-width: 2px; }
+  .cubuk-satir .deger { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .ipucu-kutu { position: fixed; pointer-events: none; z-index: 20; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.18); }
+  .not-kutusu { background: var(--warn-bg); border-radius: 10px; padding: 12px 14px; font-size: 13px; }
+  .not-kutusu ul { margin: 6px 0 0; padding-left: 18px; }
+
+  @media print {
+    header nav, header .durum, #yanPanel, .rapor-arac, .toast { display: none !important; }
+    body { background: #fff; }
+    main { display: block; padding: 0; }
+    .kart, .grafik-kart { border: 1px solid #ccc; break-inside: avoid; }
+  }
 </style>
 </head>
 <body>
@@ -87,16 +160,28 @@
     <h1>🛡️ Kalkan</h1>
     <div class="alt">Yapay zekâ destekli phishing, spam ve zararlı yazılım uyarı sistemi</div>
   </div>
+  <nav class="gorunumler" aria-label="Bölümler">
+    <button class="aktif" data-gorunum="tara">Tara</button>
+    <button data-gorunum="bilgisayar">Bilgisayar</button>
+    <button data-gorunum="uygulamalar">Uygulamalar</button>
+    <button data-gorunum="toplu">Toplu tarama</button>
+    <button data-gorunum="rapor">Rapor</button>
+    <button data-gorunum="dogruluk">Doğruluk</button>
+  </nav>
   <div class="durum" id="durum"></div>
+  <button class="ikincil" id="eklentiAnahtarAc" title="Chrome eklentisini bu Kalkan'a bağlamak için">🔑 Eklenti anahtarı</button>
 </header>
+<div id="surumUyari" class="gizli" role="alert" style="background:var(--warn-bg);color:var(--ink);border-bottom:1px solid var(--line);padding:10px 24px;font-size:14px"></div>
 
-<main>
-  <section class="kart">
+<main id="ana">
+  <!-- TARA -->
+  <section class="kart" data-gorunum-panel="tara">
     <div class="sekmeler" role="tablist">
       <button class="aktif" data-sekme="eposta">E-posta</button>
       <button data-sekme="sms">SMS / Mesaj</button>
       <button data-sekme="url">Bağlantı</button>
       <button data-sekme="dosya">Dosya / Virüs</button>
+      <button data-sekme="gorsel">QR / Görsel</button>
     </div>
 
     <div data-panel="eposta">
@@ -109,25 +194,191 @@
     </div>
     <div data-panel="url" class="gizli">
       <input type="text" id="url" placeholder="https://..." autocomplete="off">
-      <div class="ipucu">Bağlantı açılmaz; yalnızca adres incelenir (marka taklidi, benzer harf, kısaltıcı, IP adresi…).</div>
+      <div class="ipucu">Bağlantı açılmaz; yalnızca adres incelenir (marka taklidi, benzer harf, kısaltıcı, IP adresi, yapay zekâ modeli…).</div>
     </div>
     <div data-panel="dosya" class="gizli">
-      <label class="birak" id="birak">
+      <label class="birak" data-birak="dosya">
         <input type="file" id="dosya" class="gizli">
-        <div id="birakYazi">Dosyayı buraya sürükleyin ya da seçmek için tıklayın</div>
+        <div class="birak-yazi">Dosyayı buraya sürükleyin ya da seçmek için tıklayın</div>
       </label>
       <div class="ipucu">Dosya çalıştırılmaz. Hash, gerçek dosya türü, çift uzantı, makro, PDF JavaScript ve şüpheli kod desenleri incelenir. ClamAV ve VirusTotal tanımlıysa onlara da sorulur.</div>
+    </div>
+    <div data-panel="gorsel" class="gizli">
+      <label class="birak" data-birak="gorsel">
+        <input type="file" id="gorsel" class="gizli" accept="image/*">
+        <div class="birak-yazi">QR kod ya da ekran görüntüsü sürükleyin, seçin veya yapıştırın (⌘V / Ctrl+V)</div>
+      </label>
+      <div class="ipucu" id="gorselIpucu">QR koddaki bağlantı çıkarılıp taranır. QR ile oltalamada (quishing) bağlantı görselin içinde saklandığı için e-posta filtrelerinden kaçar.</div>
     </div>
 
     <div class="satir">
       <button class="ana" id="tara">Tara</button>
       <span class="kucuk" id="bilgi"></span>
     </div>
-
     <div id="sonuc"></div>
   </section>
 
-  <section class="kart">
+  <!-- BİLGİSAYAR -->
+  <section class="kart gizli" data-gorunum-panel="bilgisayar">
+    <h2>Bilgisayar taraması</h2>
+    <p class="kucuk" id="sistemSon">Son tarama bilgisi yükleniyor…</p>
+    <div class="secenekler">
+      <button class="secenek" data-sistem="hizli"><b>Hızlı tarama</b><span>İndirilenler, Masaüstü, Belgeler, geçici klasörler ve açılışta başlayan programlar. Birkaç saniye sürer.</span></button>
+      <button class="secenek" data-sistem="tam"><b>Tam tarama</b><span>Tüm kullanıcı klasörünüz. Dosya sayısına göre birkaç dakika sürebilir.</span></button>
+      <div class="secenek">
+        <b>Klasör tara</b>
+        <div class="satir" style="margin-top:6px;flex-wrap:nowrap">
+          <input type="text" id="sistemKlasor" placeholder="~/Projeler" autocomplete="off">
+          <button class="ikincil" data-sistem="klasor">Tara</button>
+        </div>
+      </div>
+    </div>
+    <div class="ipucu">Kalkan dosyaları yalnızca okur; hiçbir dosyayı kendiliğinden silmez ya da değiştirmez. Program, betik, arşiv, Office ve PDF dosyaları ile türü uzantısına uymayan dosyalar derin incelenir. iCloud'da duran (bilgisayara indirilmemiş) dosyalar indirilmeden atlanır.</div>
+    <div class="satir">
+      <button class="ikincil gizli" id="sistemIptal">Durdur</button>
+      <span class="kucuk" id="sistemBilgi"></span>
+    </div>
+    <div class="istat gizli" id="sistemOzet" style="margin-top:12px"></div>
+    <div class="kucuk gizli" id="sistemKonum" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+    <div class="satir gizli" id="sistemTemizleSatir" style="margin-top:12px">
+      <button class="ana tehlike" id="sistemTemizle">Tehlikelilerin tümünü karantinaya al</button>
+      <span class="kucuk">Yalnızca <b>tehlikeli</b> dosyalar toplu karantinaya alınır. Şüpheli dosyalar zararsız da olabilir;
+        onları "Klasörde göster" ile inceleyip tek tek karar verin. Karantina dosyaları silmez, geri yüklenebilir.</span>
+    </div>
+    <div class="tablo-kap gizli" id="sistemTabloKap">
+      <table class="kart-tablo">
+        <thead><tr><th>Seviye</th><th class="sayi">Puan</th><th>Konum</th><th>Nedenler</th><th>İşlemler</th></tr></thead>
+        <tbody id="sistemTablo"></tbody>
+      </table>
+    </div>
+    <div class="satir" style="justify-content:space-between;margin-top:20px">
+      <h3 class="alt-baslik" style="margin:0">Karantina</h3>
+      <button class="ikincil tehlike-cizgi gizli" id="karantinaBosalt">Karantinayı boşalt (kalıcı sil)</button>
+    </div>
+    <div id="karantina" class="kucuk" style="margin-top:8px">Karantinada dosya yok.</div>
+  </section>
+
+  <!-- UYGULAMALAR -->
+  <section class="kart gizli" data-gorunum-panel="uygulamalar">
+    <h2>Uygulamalar</h2>
+    <p class="kucuk">macOS'ta bir uygulamayı Çöp Kutusu'na sürüklemek ayarlarını, önbelleklerini ve açılışta başlayan servislerini geride bırakır.
+      Kalkan bunları da bulur ve seçtiklerinizi uygulamayla birlikte <b>Çöp Kutusu'na</b> taşır; Finder'daki "Geri Koy" ile geri alabilirsiniz.
+      Apple'ın sistem uygulamaları listelenmez.</p>
+    <div class="satir" style="margin:10px 0">
+      <input type="text" id="uygAra" placeholder="Uygulama ara…" autocomplete="off" style="max-width:260px">
+      <select id="uygSirala" aria-label="Sırala">
+        <option value="boyut">Boyuta göre</option>
+        <option value="kullanim">En uzun süredir kullanılmayan</option>
+        <option value="ad">Ada göre</option>
+      </select>
+      <label class="kucuk"><input type="checkbox" id="uygRiskli"> Yalnızca dikkat gerektirenler</label>
+      <span class="kucuk" id="uygBilgi"></span>
+    </div>
+    <div class="istat gizli" id="uygOzet"></div>
+    <div class="tablo-kap" style="max-height:none">
+      <table class="kart-tablo">
+        <thead><tr><th>Uygulama</th><th class="sayi">Boyut</th><th>Son kullanım</th><th>Güven</th><th>İşlemler</th></tr></thead>
+        <tbody id="uygTablo"><tr><td colspan="5" class="bos">Yükleniyor…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div id="kaldirPencere" class="gizli" role="dialog" aria-modal="true" aria-labelledby="kaldirBaslik"
+       style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:30">
+    <div class="kart" style="max-width:640px;width:100%;max-height:90vh;overflow:auto">
+      <h2 id="kaldirBaslik">Uygulamayı kaldır</h2>
+      <div id="kaldirIcerik" class="kucuk">Yükleniyor…</div>
+      <div class="satir" style="margin-top:14px;justify-content:flex-end">
+        <button class="ikincil" id="kaldirIptal">Vazgeç</button>
+        <button class="ana tehlike" id="kaldirOnay" disabled>Çöp Kutusu'na taşı</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOPLU -->
+  <section class="kart gizli" data-gorunum-panel="toplu">
+    <h2>Toplu tarama</h2>
+    <label class="birak" data-birak="toplu">
+      <input type="file" id="toplu" class="gizli" accept=".mbox,.eml,.zip,.txt,.csv">
+      <div class="birak-yazi">.mbox, .eml, .eml içeren .zip ya da URL listesi (.txt / .csv) sürükleyin</div>
+    </label>
+    <div class="ipucu">Gmail için Google Paketler'den (takeout.google.com) posta kutusu .mbox olarak indirilebilir; Outlook ve Thunderbird iletileri .eml olarak kaydeder. Toplu taramada içerik Claude'a gönderilmez. Yalnızca uyarı alan öğeler geçmişe yazılır.</div>
+    <div class="satir">
+      <button class="ana" id="topluBaslat">Taramayı başlat</button>
+      <button class="ikincil gizli" id="topluIptal">Durdur</button>
+      <button class="ikincil gizli" id="topluCsv">CSV indir</button>
+      <label class="kucuk"><input type="checkbox" id="topluSadeceUyari" checked> Yalnızca uyarılar</label>
+      <span class="kucuk" id="topluBilgi"></span>
+    </div>
+    <div class="ilerleme gizli" id="topluIlerleme"><div></div></div>
+    <div class="istat gizli" id="topluOzet"></div>
+    <div class="tablo-kap gizli" id="topluTabloKap">
+      <table>
+        <thead><tr><th>Seviye</th><th class="sayi">Puan</th><th>Tür</th><th>Hedef</th><th>Nedenler</th></tr></thead>
+        <tbody id="topluTablo"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- RAPOR -->
+  <section class="gizli" data-gorunum-panel="rapor">
+    <div class="satir rapor-arac" style="justify-content:space-between;margin-bottom:14px">
+      <div class="satir">
+        <h2 style="margin:0;font-size:18px">Tehdit raporu</h2>
+        <select id="raporGun" aria-label="Dönem">
+          <option value="7">Son 7 gün</option>
+          <option value="30" selected>Son 30 gün</option>
+          <option value="90">Son 90 gün</option>
+        </select>
+      </div>
+      <div class="satir">
+        <button class="ikincil" id="raporCsv">CSV indir</button>
+        <button class="ikincil" id="raporYazdir">Yazdır / PDF</button>
+      </div>
+    </div>
+    <div class="istat" id="raporIstat"></div>
+    <div class="grafik-kart" style="margin-bottom:16px">
+      <h3>Günlük uyarılar</h3>
+      <p class="aciklama">Şüpheli ve tehlikeli sonuçların günlere göre sayısı. Güvenli sonuçlar toplam tarama kutusunda.</p>
+      <div class="lejant">
+        <span><i style="background:var(--st-critical)"></i>⛔ Tehlikeli</span>
+        <span><i style="background:var(--st-warning)"></i>⚠️ Şüpheli</span>
+      </div>
+      <div id="gunlukGrafik"></div>
+    </div>
+    <div class="izgara">
+      <div class="grafik-kart"><h3>Tehdit türleri</h3><p class="aciklama">Uyarı alan içeriklerin kategorisi</p><div id="grafikKategori"></div></div>
+      <div class="grafik-kart"><h3>En çok taklit edilen markalar</h3><p class="aciklama">Uyarılarda adı taklit edilen kurumlar</p><div id="grafikMarka"></div></div>
+      <div class="grafik-kart"><h3>Uyarı kaynakları</h3><p class="aciklama">Uyarının nereden geldiği</p><div id="grafikKaynak"></div></div>
+      <div class="grafik-kart"><h3>En sık uyarı nedenleri</h3><p class="aciklama">Uyarılarda en çok görülen bulgular</p><div id="grafikSinyal"></div></div>
+    </div>
+  </section>
+
+  <!-- DOĞRULUK -->
+  <section class="gizli" data-gorunum-panel="dogruluk">
+    <div class="kart">
+      <h2 style="font-size:18px">Kalkan ne kadar doğru?</h2>
+      <p class="kucuk" id="dogrulukUst">Yükleniyor…</p>
+      <h3 class="alt-baslik" style="margin-top:18px">Kanallara göre (eğitimde görülmemiş test verisi)</h3>
+      <div class="tablo-kap" style="max-height:none"><table id="dogrulukKanal"></table></div>
+      <h3 class="alt-baslik" style="margin-top:18px">Veri setlerine göre</h3>
+      <div class="tablo-kap" style="max-height:none"><table id="dogrulukKaynak"></table></div>
+      <div class="not-kutusu" style="margin-top:18px">
+        <b>Bu rakamları okurken</b>
+        <ul>
+          <li><b>Tespit oranı</b>: gerçek tehditlerin yakalanan kısmı. <b>Yanlış alarm</b>: temiz içeriklerin uyarı alan kısmı.</li>
+          <li>Türkçe <b>phishing</b> için açık ve etiketli veri bulunamadı; Türkçe tarafta yalnızca spam ölçüldü. Kargo, banka, e-Devlet taklitlerini kural motoru karşılıyor, ölçülmüş doğrulukları yok.</li>
+          <li>Türkçe e-posta örneklemi küçük (107 temiz e-posta), yanlış alarm oranındaki belirsizlik geniş.</li>
+          <li>E-posta setlerinde temiz örnekler 2002-2003'ten, phishing örnekleri 2023-2024'ten; sonuçlar gerçek hayattakinden iyimser olabilir.</li>
+          <li>Dosya (zararlı yazılım) tespiti bu ölçüme dahil değil.</li>
+        </ul>
+        <p class="kucuk" style="margin:8px 0 0">Ayrıntılar ve yöntem: depodaki <code>docs/DOGRULUK.md</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CANLI UYARILAR -->
+  <section class="kart" id="yanPanel">
     <div class="satir" style="justify-content:space-between;margin-bottom:12px">
       <h2 style="margin:0">Canlı uyarılar</h2>
       <div class="satir">
@@ -139,6 +390,23 @@
     <div class="akis" id="akis"><div class="bos">Henüz kayıt yok</div></div>
   </section>
 </main>
+
+<div class="ipucu-kutu gizli" id="ipucuKutu"></div>
+
+<div id="anahtarKutusu" class="gizli" role="dialog" aria-modal="true" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:30">
+  <div class="kart" style="max-width:520px;width:100%">
+    <h2>Chrome eklentisini bağla</h2>
+    <p class="kucuk">Kalkan, yalnızca bu anahtarı bilen programlardan komut kabul eder. Eklentiyi bağlamak için:
+      Chrome'da Kalkan simgesi → <b>Ayarlar</b> → <b>Erişim anahtarı</b> alanına yapıştırıp <b>Kaydet</b>'e basın.
+      Anahtarı başkasıyla paylaşmayın.</p>
+    <input type="text" id="anahtarMetin" readonly style="margin:8px 0">
+    <div class="satir" style="justify-content:flex-end">
+      <span class="kucuk" id="anahtarBilgi"></span>
+      <button class="ikincil" id="anahtarKapat">Kapat</button>
+      <button class="ana" id="anahtarKopyala">Kopyala</button>
+    </div>
+  </div>
+</div>
 
 <div id="tokenKutusu" class="gizli" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px">
   <div class="kart" style="max-width:380px;width:100%">
@@ -152,19 +420,24 @@
 <script>
 (() => {
   const $ = (s) => document.querySelector(s);
-  const SEVIYE = { guvenli: "Güvenli", supheli: "Şüpheli", tehlikeli: "Tehlikeli" };
+  const PANEL_SURUM = "0.6.0"; // kalkan/main.py içindeki SURUM ile aynı olmalı
+  const SEVIYE = { guvenli: "Güvenli", supheli: "Şüpheli", tehlikeli: "Tehlikeli", hata: "Okunamadı" };
   const KATEGORI = { temiz: "Temiz", phishing: "Oltalama (phishing)", spam: "Spam", zararli: "Zararlı yazılım", supheli: "Şüpheli" };
-  const TUR = { eposta: "E-posta", sms: "SMS", url: "Bağlantı", dosya: "Dosya" };
-  const KAYNAK = { panel: "Panel", klasor: "Klasör izleme", imap: "Posta kutusu", api: "API" };
+  const TUR = { eposta: "E-posta", sms: "SMS", url: "Bağlantı", dosya: "Dosya", sayfa: "Sayfa", gorsel: "Görsel", baslangic: "Başlangıç öğesi" };
+  const KAYNAK = { panel: "Panel", klasor: "Klasör izleme", imap: "Posta kutusu", api: "API", tarayici: "Tarayıcı eklentisi", toplu: "Toplu tarama", sistem: "Bilgisayar taraması" };
+  const KANAL = { eposta: "E-posta", sms: "SMS", url: "URL" };
+  const KAYNAK_VERI = { nazario: "Nazario phishing e-postaları", spamassassin: "SpamAssassin e-postaları", uci_tr_spam: "UCI Türkçe e-posta", uci_sms_en: "UCI İngilizce SMS", phiusiil: "PhiUSIIL URL" };
 
   // Taranan içerik saldırgan kaynaklıdır: her metin kaçışlanarak basılır.
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const saat = (t) => new Date(t * 1000).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "medium" });
+  const yuzde = (v) => (v == null ? "—" : "%" + (v * 100).toLocaleString("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+  const sayi = (v) => Number(v || 0).toLocaleString("tr-TR");
 
   let token = "";
   try { token = localStorage.getItem("kalkan_token") || ""; } catch (_) {}
   let sekme = "eposta";
-  let secilenDosya = null;
+  const secilen = { dosya: null, gorsel: null, toplu: null };
   let kayitlar = [];
 
   async function api(yol, secenek = {}) {
@@ -175,20 +448,67 @@
     if (!r.ok) {
       let m = r.statusText;
       try { const j = await r.json(); m = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail); } catch (_) {}
+      if (r.status === 404 && m === "Not Found") m = "Sunucu bu özelliği tanımıyor; eski sürümle çalışıyor olabilir. Sunucuyu yeniden başlatın.";
       throw new Error(m);
     }
-    return r.json();
+    return secenek.metin ? r.blob() : r.json();
+  }
+  async function indir(yol, ad) {
+    const blob = await api(yol, { metin: true });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = ad; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
 
   function tokenSor() { $("#tokenKutusu").classList.remove("gizli"); $("#tokenGir").focus(); }
-  $("#tokenKaydet").onclick = () => {
+  $("#tokenKaydet").onclick = async () => {
     token = $("#tokenGir").value.trim();
     try { localStorage.setItem("kalkan_token", token); } catch (_) {}
-    $("#tokenKutusu").classList.add("gizli");
-    baslat();
+    try {
+      await fetch("/api/oturum", { method: "POST", headers: { "X-Kalkan-Token": token } }).then((r) => { if (!r.ok) throw new Error(); });
+      $("#tokenKutusu").classList.add("gizli");
+      baslat();
+    } catch (_) { alert("Anahtar geçersiz."); }
   };
 
-  // Sekmeler
+
+  // ---------- Eklenti anahtarı ----------
+  $("#eklentiAnahtarAc").onclick = async () => {
+    try {
+      const j = await api("/api/eklenti/anahtar");
+      $("#anahtarMetin").value = j.anahtar;
+      $("#anahtarBilgi").textContent = "";
+      $("#anahtarKutusu").classList.remove("gizli");
+      $("#anahtarMetin").select();
+    } catch (e) { alert("Anahtar alınamadı: " + e.message); }
+  };
+  $("#anahtarKapat").onclick = () => { $("#anahtarKutusu").classList.add("gizli"); $("#anahtarMetin").value = ""; };
+  $("#anahtarKopyala").onclick = async () => {
+    const m = $("#anahtarMetin");
+    m.select();
+    let ok = false;
+    try { await navigator.clipboard.writeText(m.value); ok = true; } catch (_) { ok = document.execCommand && document.execCommand("copy"); }
+    $("#anahtarBilgi").textContent = ok ? "Kopyalandı ✓" : "Seçili, ⌘C ile kopyalayın";
+  };
+
+  // ---------- Görünümler ----------
+  function gorunumAc(ad) {
+    document.querySelectorAll("nav.gorunumler button").forEach((b) => b.classList.toggle("aktif", b.dataset.gorunum === ad));
+    document.querySelectorAll("[data-gorunum-panel]").forEach((p) => p.classList.toggle("gizli", p.dataset.gorunumPanel !== ad));
+    $("#ana").classList.toggle("genis", ["rapor", "dogruluk", "bilgisayar", "uygulamalar"].includes(ad));
+    if (ad === "rapor") raporYukle();
+    if (ad === "bilgisayar") sistemYukle();
+    if (ad === "uygulamalar") uygulamaYukle();
+    if (ad === "dogruluk") dogrulukYukle();
+    try { history.replaceState(null, "", "#" + ad); } catch (_) {}
+  }
+  document.querySelectorAll("nav.gorunumler button").forEach((b) => b.onclick = () => gorunumAc(b.dataset.gorunum));
+  window.addEventListener("hashchange", () => {
+    const h = location.hash.slice(1);
+    if (["tara", "bilgisayar", "uygulamalar", "toplu", "rapor", "dogruluk"].includes(h)) gorunumAc(h);
+  });
+
+  // ---------- Tara ----------
   document.querySelectorAll(".sekmeler button").forEach((b) => b.onclick = () => {
     sekme = b.dataset.sekme;
     document.querySelectorAll(".sekmeler button").forEach((x) => x.classList.toggle("aktif", x === b));
@@ -196,17 +516,28 @@
     $("#sonuc").innerHTML = "";
   });
 
-  // Dosya seçme / sürükle-bırak
-  const birak = $("#birak");
-  $("#dosya").onchange = (e) => dosyaSec(e.target.files[0]);
-  ["dragenter", "dragover"].forEach((t) => birak.addEventListener(t, (e) => { e.preventDefault(); birak.classList.add("uzerinde"); }));
-  ["dragleave", "drop"].forEach((t) => birak.addEventListener(t, (e) => { e.preventDefault(); birak.classList.remove("uzerinde"); }));
-  birak.addEventListener("drop", (e) => dosyaSec(e.dataTransfer.files[0]));
-  function dosyaSec(f) {
+  document.querySelectorAll("[data-birak]").forEach((alan) => {
+    const tur = alan.dataset.birak;
+    const girdi = alan.querySelector("input[type=file]");
+    girdi.onchange = (e) => dosyaSec(tur, e.target.files[0]);
+    ["dragenter", "dragover"].forEach((t) => alan.addEventListener(t, (e) => { e.preventDefault(); alan.classList.add("uzerinde"); }));
+    ["dragleave", "drop"].forEach((t) => alan.addEventListener(t, (e) => { e.preventDefault(); alan.classList.remove("uzerinde"); }));
+    alan.addEventListener("drop", (e) => dosyaSec(tur, e.dataTransfer.files[0]));
+  });
+  function dosyaSec(tur, f) {
     if (!f) return;
-    secilenDosya = f;
-    $("#birakYazi").textContent = `${f.name} · ${(f.size / 1024).toFixed(1)} KB`;
+    secilen[tur] = f;
+    document.querySelector(`[data-birak="${tur}"] .birak-yazi`).textContent = `${f.name} · ${(f.size / 1024).toFixed(1)} KB`;
   }
+  // Panoya kopyalanmış ekran görüntüsünü yapıştırma
+  document.addEventListener("paste", (e) => {
+    const oge = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith("image/"));
+    if (!oge) return;
+    const f = oge.getAsFile();
+    if (!f) return;
+    document.querySelector('.sekmeler button[data-sekme="gorsel"]').click();
+    dosyaSec("gorsel", new File([f], "yapistirilan.png", { type: f.type }));
+  });
 
   $("#url").addEventListener("keydown", (e) => { if (e.key === "Enter") tara(); });
   $("#tara").onclick = tara;
@@ -216,21 +547,23 @@
     $("#bilgi").textContent = "";
     try {
       let veri;
+      const basla = () => { btn.disabled = true; $("#bilgi").textContent = "Taranıyor…"; };
       if (sekme === "eposta" || sekme === "sms") {
         const icerik = $("#" + sekme).value;
         if (!icerik.trim()) return ($("#bilgi").textContent = "Önce içerik yapıştırın.");
-        btn.disabled = true; $("#bilgi").textContent = "Taranıyor…";
+        basla();
         veri = await api("/api/tara/metin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ icerik, tur: sekme }) });
       } else if (sekme === "url") {
         const url = $("#url").value.trim();
         if (!url) return ($("#bilgi").textContent = "Önce bir bağlantı girin.");
-        btn.disabled = true; $("#bilgi").textContent = "Taranıyor…";
+        basla();
         veri = await api("/api/tara/url", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
       } else {
-        if (!secilenDosya) return ($("#bilgi").textContent = "Önce bir dosya seçin.");
-        btn.disabled = true; $("#bilgi").textContent = "Taranıyor…";
-        const fd = new FormData(); fd.append("dosya", secilenDosya);
-        veri = await api("/api/tara/dosya", { method: "POST", body: fd });
+        const f = secilen[sekme];
+        if (!f) return ($("#bilgi").textContent = "Önce bir dosya seçin.");
+        basla();
+        const fd = new FormData(); fd.append("dosya", f);
+        veri = await api(sekme === "gorsel" ? "/api/tara/gorsel" : "/api/tara/dosya", { method: "POST", body: fd });
       }
       $("#bilgi").textContent = "";
       sonucGoster(veri);
@@ -263,12 +596,19 @@
     const ek = v.ek || {};
     let detay = "";
     if (ek.sha256) detay += `<p class="kucuk">SHA-256: ${esc(ek.sha256)} · Gerçek tür: ${esc(ek.gercek_tur)} · ${(ek.boyut / 1024).toFixed(1)} KB</p>`;
+    if (ek.indirme_adresi) detay += `<p class="kucuk">İndirildiği adres: ${esc(ek.indirme_adresi)}</p>`;
     if (ek.virustotal) detay += `<p class="kucuk">VirusTotal: ${esc(JSON.stringify(ek.virustotal))}</p>`;
+    if (ek.qr) {
+      detay += ek.qr.length
+        ? `<div class="alt-baslik" style="margin-top:10px">QR içeriği</div><ul class="kucuk">${ek.qr.map((q) => `<li>${esc(q.icerik)} · ${esc(SEVIYE[q.seviye])} (${q.puan})</li>`).join("")}</ul>`
+        : `<p class="kucuk">Görselde QR kod bulunamadı.</p>`;
+      if (ek.ocr === false) detay += `<p class="kucuk">Görseldeki yazı okunmadı: Tesseract kurulu değil (README → QR ve görsel tarama).</p>`;
+    }
     if (ek.baglantilar?.length) detay += `<div class="alt-baslik" style="margin-top:10px">Bağlantılar</div><ul class="kucuk">${ek.baglantilar.map((b) => `<li>${esc(b.url)} · ${esc(SEVIYE[b.seviye])} (${b.puan})</li>`).join("")}</ul>`;
     if (ek.ekler?.length) detay += `<div class="alt-baslik" style="margin-top:10px">Ekler</div><ul class="kucuk">${ek.ekler.map((b) => `<li>${esc(b.ad)} · ${esc(SEVIYE[b.seviye])} (${b.puan})</li>`).join("")}</ul>`;
     return `<div class="sonuc ${esc(v.seviye)}">
       <div class="sonuc-ust">
-        <div class="puan">${v.puan}</div>
+        <div class="puan">${Number(v.puan) || 0}</div>
         <div><div class="seviye">${esc(SEVIYE[v.seviye])}${v.seviye !== "guvenli" ? " · " + esc(KATEGORI[v.kategori] || v.kategori) : ""}</div>
         <div class="kucuk">${esc(TUR[v.tur] || v.tur)} · ${esc(v.hedef)}</div></div>
       </div>
@@ -277,24 +617,24 @@
   }
   function sonucGoster(v) { $("#sonuc").innerHTML = sonucHtml(v); }
 
-  // Akış ve istatistik
+  // ---------- Canlı akış ----------
   function akisCiz() {
     const sadece = $("#sadeceUyari").checked;
     const liste = kayitlar.filter((k) => !sadece || k.seviye !== "guvenli");
     if (!liste.length) { $("#akis").innerHTML = `<div class="bos">${sadece ? "Uyarı yok" : "Henüz kayıt yok"}</div>`; return; }
     $("#akis").innerHTML = liste.slice(0, 200).map((k) => `
-      <div class="olay ${esc(k.seviye)}${k._yeni ? " yeni" : ""}" data-id="${k.id}">
+      <div class="olay ${esc(k.seviye)}${k._yeni ? " yeni" : ""}" data-id="${Number(k.id)}">
         <div class="serit"></div>
         <div style="min-width:0">
           <div class="baslik">${esc(k.hedef)}</div>
           <div class="meta">${esc(SEVIYE[k.seviye])}${k.seviye !== "guvenli" ? " · " + esc(KATEGORI[k.kategori] || k.kategori) : ""} · ${esc(TUR[k.tur] || k.tur)} · ${esc(KAYNAK[k.kaynak] || k.kaynak)} · ${saat(k.zaman)}</div>
         </div>
-        <div class="p">${k.puan}</div>
+        <div class="p">${Number(k.puan) || 0}</div>
       </div>`).join("");
     kayitlar.forEach((k) => delete k._yeni);
     document.querySelectorAll(".olay").forEach((el) => el.onclick = () => {
       const k = kayitlar.find((x) => String(x.id) === el.dataset.id);
-      if (k) { sonucGoster(k); window.scrollTo({ top: 0, behavior: "smooth" }); }
+      if (k) { gorunumAc("tara"); sonucGoster(k); window.scrollTo({ top: 0, behavior: "smooth" }); }
     });
   }
   $("#sadeceUyari").onchange = akisCiz;
@@ -304,24 +644,23 @@
       const s = await api("/api/istatistik");
       const sv = s.seviye || {};
       $("#istat").innerHTML = `
-        <div><b>${s.toplam}</b><span>Toplam tarama</span></div>
-        <div><b style="color:var(--bad)">${sv.tehlikeli || 0}</b><span>Tehlikeli</span></div>
-        <div><b style="color:var(--warn)">${sv.supheli || 0}</b><span>Şüpheli</span></div>
-        <div><b style="color:var(--ok)">${sv.guvenli || 0}</b><span>Güvenli</span></div>`;
+        <div><b>${sayi(s.toplam)}</b><span>Toplam tarama</span></div>
+        <div><b style="color:var(--bad)">${sayi(sv.tehlikeli)}</b><span>Tehlikeli</span></div>
+        <div><b style="color:var(--warn)">${sayi(sv.supheli)}</b><span>Şüpheli</span></div>
+        <div><b style="color:var(--ok)">${sayi(sv.guvenli)}</b><span>Güvenli</span></div>`;
     } catch (_) {}
   }
 
   function toast(k) {
     const t = document.createElement("div");
     t.className = "toast " + k.seviye;
-    t.innerHTML = `<b>${k.seviye === "tehlikeli" ? "🚨 Tehlikeli" : "⚠️ Şüpheli"} ${esc(KATEGORI[k.kategori] || "")}</b><br><span style="font-size:13px">${esc(k.hedef)}</span>`;
+    t.innerHTML = `<b>${k.seviye === "tehlikeli" ? "🚨 Tehlikeli" : "⚠️ Şüpheli"} ${esc(KATEGORI[k.kategori] || "")}</b><br><span style="font-size:13px">${esc(KAYNAK[k.kaynak] || k.kaynak)} · ${esc(k.hedef)}</span>`;
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 6000);
     if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
       new Notification(`Kalkan: ${SEVIYE[k.seviye]} ${KATEGORI[k.kategori] || ""}`, { body: `${TUR[k.tur] || k.tur} · ${k.hedef}` });
     }
   }
-
   $("#bildirimIzni").onclick = async () => {
     if (!("Notification" in window)) return alert("Bu tarayıcı masaüstü bildirimlerini desteklemiyor.");
     const izin = await Notification.requestPermission();
@@ -329,40 +668,554 @@
   };
 
   let kaynak = null;
+  let istatZamanlayici = null;
   function akisBaglan() {
     if (kaynak) kaynak.close();
-    kaynak = new EventSource("/api/olaylar" + (token ? "?token=" + encodeURIComponent(token) : ""));
+    kaynak = new EventSource("/api/olaylar"); // anahtar oturum çereziyle gider (adres satırında değil)
     kaynak.onmessage = (e) => {
       const olay = JSON.parse(e.data);
+      if (olay.tip === "sistem_tarama") {
+        const d = olay.veri;
+        if (!$('[data-gorunum-panel="bilgisayar"]').classList.contains("gizli")) sistemYukle();
+        if (d.uyari) toast({ seviye: d.tehlikeli ? "tehlikeli" : "supheli", kategori: "zararli", kaynak: "sistem",
+          hedef: `${SISTEM_TUR[d.tur] || d.tur}: ${d.uyari} dosyada sorun bulundu`, tur: "dosya" });
+        return;
+      }
       if (olay.tip !== "tarama") return;
       const k = olay.veri; k._yeni = true;
       kayitlar.unshift(k);
-      akisCiz(); istatistikYukle();
-      if (k.seviye !== "guvenli" && k.kaynak !== "panel") toast(k);
+      if (kayitlar.length > 500) kayitlar.length = 500;
+      akisCiz();
+      clearTimeout(istatZamanlayici);
+      istatZamanlayici = setTimeout(istatistikYukle, 400); // toplu taramada istek yağmuru olmasın
+      // Toplu ve bilgisayar taramalarında her öğe için değil, iş sonunda tek özet bildirimi gösterilir
+      if (k.seviye !== "guvenli" && !["panel", "toplu", "sistem"].includes(k.kaynak)) toast(k);
     };
   }
 
+  // ---------- Bilgisayar taraması ----------
+  const SISTEM_TUR = { hizli: "Hızlı tarama", tam: "Tam tarama", klasor: "Klasör taraması" };
+  let sistemId = null, sistemZaman = null;
+  const ev = (y) => String(y || "").replace(/^\/Users\/[^/]+/, "~");
+
+  async function sistemYukle() {
+    try {
+      const d = await api("/api/sistem/durum");
+      const s = d.son_tarama;
+      const oto = d.otomatik_saat > 0 ? `Otomatik hızlı tarama ${d.otomatik_saat} saatte bir çalışır.` : "Otomatik tarama kapalı.";
+      $("#sistemSon").textContent = (s
+        ? `Son tamamlanan tarama: ${saat(s.zaman)} · ${SISTEM_TUR[s.tur] || s.tur} · ${sayi(s.taranan)} dosya · ${s.uyari ? s.uyari + " uyarı" : "sorun bulunmadı"}. `
+        : "Bu bilgisayar henüz taranmadı. ") + oto;
+      if (d.is) {
+        sistemId = d.is.id; sistemCiz(d.is);
+        if (d.is.durum === "calisiyor" && !sistemZaman) sistemIzle();
+      }
+    } catch (e) { $("#sistemSon").textContent = "Durum alınamadı: " + e.message; }
+    karantinaYukle();
+  }
+
+  document.querySelectorAll("[data-sistem]").forEach((b) => b.onclick = async () => {
+    const tur = b.dataset.sistem;
+    const klasor = $("#sistemKlasor").value.trim();
+    if (tur === "klasor" && !klasor) return ($("#sistemBilgi").textContent = "Önce bir klasör yazın (ör. ~/Projeler).");
+    $("#sistemBilgi").textContent = "Başlatılıyor…";
+    try {
+      const j = await api("/api/sistem/tara", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tur, klasor }) });
+      sistemId = j.id;
+      sistemIzle();
+    } catch (e) { $("#sistemBilgi").textContent = "Hata: " + e.message; }
+  });
+  $("#sistemIptal").onclick = () => sistemId && api(`/api/sistem/${sistemId}/iptal`, { method: "POST" });
+
+  let sistemIzleNo = 0;
+  async function sistemIzle() {
+    clearTimeout(sistemZaman);
+    const no = ++sistemIzleNo; // yeni bir izleme başlayınca eskisi kendini durdurur
+    try {
+      const d = (await api(`/api/sistem/durum?is_id=${sistemId}`)).is;
+      if (!d) return;
+      if (no !== sistemIzleNo) return;
+      sistemCiz(d);
+      if (d.durum === "calisiyor") sistemZaman = setTimeout(sistemIzle, 700);
+      else { sistemZaman = null; sistemYukle(); }
+    } catch (e) { $("#sistemBilgi").textContent = "Hata: " + e.message; }
+  }
+
+  function sistemCiz(d) {
+    const calisiyor = d.durum === "calisiyor";
+    document.querySelectorAll("[data-sistem]").forEach((b) => b.disabled = calisiyor);
+    $("#sistemIptal").classList.toggle("gizli", !calisiyor);
+    ["#sistemOzet", "#sistemTabloKap"].forEach((s) => $(s).classList.remove("gizli"));
+    $("#sistemKonum").classList.toggle("gizli", !calisiyor);
+    $("#sistemKonum").textContent = calisiyor ? "Taranıyor: " + ev(d.konum) : "";
+    const sure = ((d.bitis || Date.now() / 1000) - d.baslangic).toFixed(1).replace(".", ",");
+    const durumYazi = { calisiyor: "Taranıyor", bitti: "Tamamlandı", iptal: "Durduruldu", hata: "Hata" }[d.durum] || d.durum;
+    let bilgi = `${SISTEM_TUR[d.tur] || d.tur} · ${durumYazi} · ${sure} sn`;
+    if (d.bulutta) bilgi += ` · iCloud'daki ${sayi(d.bulutta)} dosya indirilmeden atlandı`;
+    if (d.erisilemeyen > 0) bilgi += ` · ⚠️ ${sayi(d.erisilemeyen)} klasöre erişilemedi, bu klasörler taranmadı (macOS: Sistem Ayarları → Gizlilik ve Güvenlik → Tam Disk Erişimi'nden Kalkan'ı başlattığınız uygulamaya, ör. Terminal'e izin verin)`;
+    if (d.hata) bilgi += " · " + d.hata;
+    $("#sistemBilgi").textContent = bilgi;
+    $("#sistemOzet").innerHTML = `
+      <div><b>${sayi(d.taranan)}</b><span>Bakılan dosya</span></div>
+      <div><b>${sayi(d.derin)}</b><span>Derin incelenen</span></div>
+      <div><b style="color:var(--bad)">${sayi(d.tehlikeli)}</b><span>⛔ Tehlikeli</span></div>
+      <div><b style="color:var(--warn)">${sayi(d.uyari - d.tehlikeli)}</b><span>⚠️ Şüpheli</span></div>`;
+    const b = d.bulgular || [];
+    const bekleyen = b.filter((x) => x.tur === "dosya" && !x.karantina && !x.silindi);
+    const bekleyenTehlikeli = bekleyen.filter((x) => x.seviye === "tehlikeli");
+    $("#sistemTemizleSatir").classList.toggle("gizli", calisiyor || !bekleyenTehlikeli.length);
+    $("#sistemTemizle").textContent = `Tehlikelilerin tümünü karantinaya al (${bekleyenTehlikeli.length})`;
+
+    const islemler = (x) => {
+      if (x.karantina) return '<span class="kucuk">🔒 Karantinada</span>';
+      if (x.silindi) return '<span class="kucuk">🗑️ Çöp kutusunda</span>';
+      const no = Number(x.no);
+      return `<div class="islemler">
+        <button class="ikincil" data-islem="goster" data-no="${no}">📂 Klasörde göster</button>
+        ${x.tur === "dosya" ? `<button class="ikincil" data-islem="karantina" data-no="${no}">🔒 Karantinaya al</button>` : ""}
+        <button class="ikincil tehlike-cizgi" data-islem="cop" data-no="${no}">🗑️ ${x.tur === "baslangic" ? "Kaldır" : "Çöp kutusuna taşı"}</button>
+      </div>`;
+    };
+    $("#sistemTablo").innerHTML = b.length ? b.map((x) => `<tr>
+      <td><span class="etiket ${esc(x.seviye)}">${esc(SEVIYE[x.seviye])}</span></td>
+      <td class="sayi" data-ad="Puan">${Number(x.puan) || 0}</td>
+      <td class="yol" data-ad="Konum" style="min-width:200px;max-width:380px">${esc(ev(x.yol))}${x.tur === "baslangic" ? '<br><span class="kucuk">Açılışta başlayan öğe</span>' : ""}</td>
+      <td class="kucuk" data-ad="Nedenler" style="min-width:240px">${x.nedenler.map(esc).join("<br>")}</td>
+      <td>${islemler(x)}</td></tr>`).join("")
+      : `<tr><td colspan="5" class="bos">${calisiyor ? "Taranıyor…" : "✅ Sorun bulunmadı"}</td></tr>`;
+
+    const govde = (x) => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_id: d.id, no: x.no }) });
+    document.querySelectorAll("[data-islem]").forEach((btn) => btn.onclick = async () => {
+      const x = b.find((y) => String(y.no) === btn.dataset.no);
+      const islem = btn.dataset.islem;
+      try {
+        if (islem === "goster") {
+          await api("/api/sistem/goster", govde(x));
+          return;
+        }
+        if (islem === "karantina") {
+          if (!confirm(`Bu dosya karantinaya taşınacak ve çalıştırılamaz hâle gelecek:\n\n${ev(x.yol)}\n\nİstediğiniz zaman geri yükleyebilirsiniz. Devam edilsin mi?`)) return;
+          btn.disabled = true;
+          await api("/api/karantina", govde(x));
+          x.karantina = true;
+        }
+        if (islem === "cop") {
+          const ek = x.tur === "baslangic"
+            ? "\n\nBu açılışta başlayan bir öğe. Kaldırınca bir sonraki oturum açışınızda artık başlamaz; şu an çalışıyorsa bilgisayarı yeniden başlatın."
+            : "";
+          if (!confirm(`Bu dosya çöp kutusuna taşınacak:\n\n${ev(x.yol)}${ek}\n\nÇöp kutusu boşaltılana kadar oradan geri alabilirsiniz. Devam edilsin mi?`)) return;
+          btn.disabled = true;
+          const r = await api("/api/sistem/cop", govde(x));
+          x.silindi = r.nereye;
+        }
+        sistemCiz(d); karantinaYukle();
+      } catch (e) {
+        alert("İşlem yapılamadı: " + e.message);
+        btn.disabled = false;
+      }
+    });
+  }
+
+  async function sistemTemizle(seviye) {
+    if (!sistemId) return;
+    const metin = "tehlikeli bulunan tüm dosyalar";
+    if (!confirm(`Bu taramada ${metin} karantinaya taşınacak ve çalıştırılamaz hâle gelecek.\n\nKarantinadan tek tek geri yükleyebilir ya da kalıcı silebilirsiniz. Devam edilsin mi?`)) return;
+    try {
+      const r = await api("/api/sistem/temizle", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_id: sistemId, seviye }) });
+      let mesaj = `${r.karantinaya_alinan} dosya karantinaya alındı.`;
+      if (r.hatalar.length) mesaj += `\n${r.hatalar.length} dosya alınamadı:\n` + r.hatalar.slice(0, 5).map((h) => `• ${ev(h.yol)}: ${h.hata}`).join("\n");
+      alert(mesaj);
+    } catch (e) { alert("Temizlenemedi: " + e.message); }
+    const d = (await api(`/api/sistem/durum?is_id=${sistemId}`)).is;
+    if (d) sistemCiz(d);
+    karantinaYukle();
+  }
+  $("#sistemTemizle").onclick = () => sistemTemizle("tehlikeli");
+
+  $("#karantinaBosalt").onclick = async () => {
+    if (!confirm("Karantinadaki TÜM dosyalar kalıcı olarak silinecek. Bu işlem GERİ ALINAMAZ.\n\nDevam edilsin mi?")) return;
+    try {
+      const r = await api("/api/karantina/bosalt", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ onay: true }) });
+      alert(`${r.silinen} dosya kalıcı olarak silindi.`);
+    } catch (e) { alert("Boşaltılamadı: " + e.message); }
+    karantinaYukle();
+  };
+
+  async function karantinaYukle() {
+    try {
+      const l = await api("/api/karantina");
+      $("#karantinaBosalt").classList.toggle("gizli", !l.length);
+      $("#karantina").innerHTML = l.length ? `<table class="kart-tablo"><thead><tr><th>Dosya</th><th>Alındığı yer</th><th>Tarih</th><th>Neden</th><th>İşlemler</th></tr></thead><tbody>${
+        l.map((k) => `<tr><td style="min-width:140px;word-break:break-all"><b>${esc(k.ad)}</b></td><td class="yol" data-ad="Alındığı yer" style="max-width:340px">${esc(ev(k.orijinal))}</td>
+          <td data-ad="Tarih" style="white-space:nowrap">${saat(k.zaman)}</td>
+          <td class="kucuk" data-ad="Neden" style="min-width:180px">${esc((k.nedenler || [])[0] || "")}</td>
+          <td><div class="islemler">
+            <button class="ikincil" data-kislem="goster" data-id="${esc(k.id)}">📂 Klasörde göster</button>
+            <button class="ikincil" data-kislem="geri" data-id="${esc(k.id)}">↩️ Geri yükle</button>
+            <button class="ikincil tehlike-cizgi" data-kislem="sil" data-id="${esc(k.id)}">✖ Kalıcı sil</button>
+          </div></td></tr>`).join("")}</tbody></table>`
+        : "Karantinada dosya yok.";
+      document.querySelectorAll("[data-kislem]").forEach((btn) => btn.onclick = async () => {
+        const id = btn.dataset.id, islem = btn.dataset.kislem;
+        const k = l.find((x) => x.id === id);
+        try {
+          if (islem === "goster") return void await api(`/api/karantina/${id}/goster`, { method: "POST" });
+          if (islem === "geri") {
+            if (!confirm("Dosya eski konumuna geri taşınacak. Kalkan onu tehlikeli bulmuştu. Emin misiniz?")) return;
+            await api(`/api/karantina/${id}/geri-yukle`, { method: "POST" });
+          }
+          if (islem === "sil") {
+            if (!confirm(`"${k.ad}" kalıcı olarak silinecek. Bu işlem GERİ ALINAMAZ.\n\nDevam edilsin mi?`)) return;
+            await api(`/api/karantina/${id}`, { method: "DELETE" });
+          }
+          karantinaYukle();
+        } catch (e) { alert("İşlem yapılamadı: " + e.message); }
+      });
+    } catch (_) {}
+  }
+
+  // ---------- Uygulamalar ----------
+  let uygListe = [], uygZaman = null;
+  const boyutYaz = (b) => {
+    if (b == null) return "…";
+    const birimler = ["B", "KB", "MB", "GB", "TB"]; let i = 0, v = b;
+    while (v >= 1024 && i < birimler.length - 1) { v /= 1024; i++; }
+    return v.toLocaleString("tr-TR", { maximumFractionDigits: v < 10 && i > 1 ? 1 : 0 }) + " " + birimler[i];
+  };
+  const GUVEN = {
+    appstore: ["guvenli", "App Store"], gelistirici: ["guvenli", "Doğrulanmış geliştirici"], apple: ["guvenli", "Apple"],
+    imzasiz: ["tehlikeli", "İmzasız"], adhoc: ["supheli", "Geçici imza"], bilinmiyor: ["hata", "İmza okunamadı"],
+  };
+
+  async function uygulamaYukle() {
+    clearTimeout(uygZaman);
+    try {
+      const d = await api("/api/uygulamalar");
+      uygListe = d.uygulamalar;
+      $("#uygBilgi").textContent = d.hazir ? "" : "Boyut ve güvenlik bilgileri hesaplanıyor…";
+      uygCiz();
+      if (!d.hazir && !$('[data-gorunum-panel="uygulamalar"]').classList.contains("gizli")) uygZaman = setTimeout(uygulamaYukle, 2000);
+    } catch (e) {
+      $("#uygTablo").innerHTML = `<tr><td colspan="5" class="bos">${esc(e.message)}</td></tr>`;
+    }
+  }
+  ["#uygAra", "#uygSirala", "#uygRiskli"].forEach((s) => $(s).addEventListener(s === "#uygAra" ? "input" : "change", () => uygCiz()));
+
+  function uygCiz() {
+    const ara = $("#uygAra").value.trim().toLocaleLowerCase("tr-TR");
+    const sirala = $("#uygSirala").value;
+    let l = uygListe.filter((u) => !ara || u.ad.toLocaleLowerCase("tr-TR").includes(ara));
+    if ($("#uygRiskli").checked) l = l.filter((u) => (u.risk || []).length);
+    l.sort((a, b) => sirala === "boyut" ? (b.boyut || 0) - (a.boyut || 0)
+      : sirala === "kullanim" ? String(a.son_kullanim || "0000").localeCompare(String(b.son_kullanim || "0000"))
+      : a.ad.localeCompare(b.ad, "tr"));
+    const toplam = uygListe.reduce((t, u) => t + (u.boyut || 0), 0);
+    const riskli = uygListe.filter((u) => (u.risk || []).length).length;
+    $("#uygOzet").classList.remove("gizli");
+    $("#uygOzet").innerHTML = `
+      <div><b>${uygListe.length}</b><span>Uygulama</span></div>
+      <div><b>${boyutYaz(toplam)}</b><span>Toplam boyut</span></div>
+      <div><b style="color:${riskli ? "var(--bad)" : "var(--ok)"}">${riskli}</b><span>Dikkat gerektiren</span></div>
+      <div><b>${uygListe.filter((u) => !u.son_kullanim).length}</b><span>Hiç açılmamış görünen</span></div>`;
+    $("#uygTablo").innerHTML = l.length ? l.map((u) => {
+      const g = u.imza ? GUVEN[u.imza.durum] || GUVEN.bilinmiyor : null;
+      const gk = u.gatekeeper && u.gatekeeper.durum === "red";
+      const risk = (u.risk || []).length;
+      return `<tr>
+        <td><b>${esc(u.ad)}</b> <span class="kucuk">${esc(u.surum)}</span>
+          ${u.nereden ? `<div class="kucuk">İndirildiği yer: ${esc(u.nereden.replace(/^https?:\/\//, "").split("/")[0])}</div>` : ""}</td>
+        <td class="sayi" data-ad="Boyut">${boyutYaz(u.boyut)}</td>
+        <td data-ad="Son kullanım">${u.imza ? (u.son_kullanim ? new Date(u.son_kullanim).toLocaleDateString("tr-TR") : '<span class="kucuk">Bilinmiyor</span>') : "…"}</td>
+        <td data-ad="Güven">${g ? `<span class="etiket ${risk ? "tehlikeli" : g[0]}" title="${esc(u.imza.aciklama)}">${esc(g[1])}</span>` : "…"}
+          ${gk ? `<div class="kucuk" style="color:var(--bad)">Gatekeeper onaylamıyor</div>` : ""}
+          ${risk ? `<div class="kucuk">${u.risk.map(esc).join("<br>")}</div>` : ""}</td>
+        <td><div class="islemler">
+          <button class="ikincil" data-uyg-goster="${esc(u.id)}">📂 Klasörde göster</button>
+          <button class="ikincil tehlike-cizgi" data-uyg-kaldir="${esc(u.id)}">🗑️ Kaldır</button>
+        </div></td></tr>`;
+    }).join("") : `<tr><td colspan="5" class="bos">${uygListe.length ? "Eşleşen uygulama yok" : "Kaldırılabilir uygulama bulunamadı"}</td></tr>`;
+    document.querySelectorAll("[data-uyg-goster]").forEach((b) => b.onclick = () =>
+      api(`/api/uygulamalar/${b.dataset.uygGoster}/goster`, { method: "POST" }).catch((e) => alert(e.message)));
+    document.querySelectorAll("[data-uyg-kaldir]").forEach((b) => b.onclick = () => kaldirAc(b.dataset.uygKaldir));
+  }
+
+  let kaldirKimlik = null;
+  async function kaldirAc(kimlik) {
+    kaldirKimlik = kimlik;
+    $("#kaldirPencere").classList.remove("gizli");
+    $("#kaldirIcerik").textContent = "Uygulama ve artıkları aranıyor…";
+    $("#kaldirOnay").disabled = true;
+    try {
+      const d = await api(`/api/uygulamalar/${kimlik}/artiklar`);
+      const u = d.uygulama;
+      $("#kaldirBaslik").textContent = `${u.ad} uygulamasını kaldır`;
+      const satir = (a, i) => `<label class="satir" style="flex-wrap:nowrap;align-items:flex-start;gap:8px;margin:6px 0">
+        <input type="checkbox" data-artik="${i}" ${a.secili ? "checked" : ""}>
+        <span style="min-width:0"><span class="yol">${esc(ev(a.yol))}</span><br>
+          <span class="kucuk">${esc(boyutYaz(a.boyut))} · ${a.eslesme === "paket kimliği" ? "paket kimliğiyle kesin eşleşme" : "uygulama adıyla eşleşme"}</span></span></label>`;
+      $("#kaldirIcerik").innerHTML = `
+        ${u.calisiyor ? `<div class="not-kutusu" style="background:var(--bad-bg);margin-bottom:10px">⛔ <b>${esc(u.ad)} şu an açık.</b> Önce uygulamadan çıkın (⌘Q), sonra bu pencereyi yeniden açın.</div>` : ""}
+        <p style="margin:0 0 8px"><b>${esc(u.ad)}</b> ${esc(u.surum)} · <span class="yol">${esc(ev(u.yol))}</span> · ${boyutYaz(u.boyut)}</p>
+        <div class="alt-baslik" style="margin-top:12px">Geride kalan dosyalar (${d.artiklar.length})</div>
+        ${d.artiklar.length ? d.artiklar.map(satir).join("") : '<p>Library klasöründe artık dosya bulunamadı.</p>'}
+        <p class="kucuk" style="margin-top:12px" id="kaldirToplam"></p>
+        <p class="kucuk">Uygulama /Applications'taysa macOS yönetici şifrenizi isteyebilir.</p>`;
+      const toplamYaz = () => {
+        const secili = [...document.querySelectorAll("[data-artik]")].filter((c) => c.checked).map((c) => d.artiklar[+c.dataset.artik]);
+        $("#kaldirToplam").textContent = `Çöp Kutusu'na taşınacak: uygulama + ${secili.length} artık · toplam ${boyutYaz((u.boyut || 0) + secili.reduce((t, a) => t + (a.boyut || 0), 0))}`;
+        return secili;
+      };
+      document.querySelectorAll("[data-artik]").forEach((c) => c.onchange = toplamYaz);
+      toplamYaz();
+      $("#kaldirOnay").disabled = u.calisiyor;
+      $("#kaldirOnay").onclick = async () => {
+        const secili = toplamYaz().map((a) => a.yol);
+        if (!confirm(`${u.ad} ve seçilen ${secili.length} artık Çöp Kutusu'na taşınacak. Çöp Kutusu boşaltılana kadar geri alabilirsiniz. Devam edilsin mi?`)) return;
+        $("#kaldirOnay").disabled = true;
+        $("#kaldirOnay").textContent = "Taşınıyor…";
+        try {
+          const r = await api(`/api/uygulamalar/${kimlik}/kaldir`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ artiklar: secili }) });
+          let m = `${u.ad} ve ${r.artiklar.length} artık Çöp Kutusu'na taşındı.`;
+          if (r.hatalar.length) m += `\n${r.hatalar.length} artık taşınamadı:\n` + r.hatalar.map((h) => `• ${ev(h.yol)}: ${h.hata}`).join("\n");
+          alert(m);
+          kaldirKapat();
+          uygulamaYukle();
+        } catch (e) { alert("Kaldırılamadı: " + e.message); }
+        $("#kaldirOnay").textContent = "Çöp Kutusu'na taşı";
+        $("#kaldirOnay").disabled = false;
+      };
+    } catch (e) {
+      $("#kaldirIcerik").textContent = "Bilgi alınamadı: " + e.message;
+    }
+  }
+  function kaldirKapat() { $("#kaldirPencere").classList.add("gizli"); kaldirKimlik = null; }
+  $("#kaldirIptal").onclick = kaldirKapat;
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && kaldirKimlik) kaldirKapat(); });
+
+  // ---------- Toplu tarama ----------
+  let topluId = null, topluZaman = null, topluSon = null;
+  $("#topluBaslat").onclick = async () => {
+    const f = secilen.toplu;
+    if (!f) return ($("#topluBilgi").textContent = "Önce bir dosya seçin.");
+    $("#topluBaslat").disabled = true;
+    $("#topluBilgi").textContent = "Yükleniyor…";
+    try {
+      const fd = new FormData(); fd.append("dosya", f);
+      const j = await api("/api/toplu", { method: "POST", body: fd });
+      topluId = j.id;
+      ["#topluIlerleme", "#topluOzet", "#topluTabloKap", "#topluIptal"].forEach((s) => $(s).classList.remove("gizli"));
+      $("#topluCsv").classList.add("gizli");
+      topluIzle();
+    } catch (e) {
+      $("#topluBilgi").textContent = "Hata: " + e.message;
+      $("#topluBaslat").disabled = false;
+    }
+  };
+  $("#topluIptal").onclick = () => topluId && api(`/api/toplu/${topluId}/iptal`, { method: "POST" });
+  $("#topluCsv").onclick = () => topluId && indir(`/api/toplu/${topluId}/csv`, `kalkan_toplu_${topluId}.csv`);
+  $("#topluSadeceUyari").onchange = () => topluSon && topluTablo(topluSon);
+
+  async function topluIzle() {
+    clearTimeout(topluZaman);
+    try {
+      const d = await api(`/api/toplu/${topluId}`);
+      topluSon = d;
+      const oran = d.toplam ? d.islenen / d.toplam : 0;
+      $("#topluIlerleme > div").style.width = (oran * 100).toFixed(1) + "%";
+      const durumYazi = { calisiyor: "Taranıyor", bitti: "Bitti", iptal: "Durduruldu", hata: "Hata" }[d.durum] || d.durum;
+      $("#topluBilgi").textContent = `${durumYazi}: ${sayi(d.islenen)} / ${d.toplam == null ? "?" : sayi(d.toplam)}${d.hata ? " · " + d.hata : ""}`;
+      const s = d.sayac || {};
+      $("#topluOzet").innerHTML = `
+        <div><b>${sayi(d.islenen)}</b><span>Taranan</span></div>
+        <div><b style="color:var(--bad)">${sayi(s.tehlikeli)}</b><span>Tehlikeli</span></div>
+        <div><b style="color:var(--warn)">${sayi(s.supheli)}</b><span>Şüpheli</span></div>
+        <div><b style="color:var(--ok)">${sayi(s.guvenli)}</b><span>Güvenli</span></div>`;
+      topluTablo(d);
+      if (d.durum === "calisiyor") { topluZaman = setTimeout(topluIzle, 800); return; }
+      $("#topluBaslat").disabled = false;
+      $("#topluIptal").classList.add("gizli");
+      if (d.durum !== "hata") $("#topluCsv").classList.remove("gizli");
+    } catch (e) {
+      $("#topluBilgi").textContent = "Hata: " + e.message;
+      $("#topluBaslat").disabled = false;
+    }
+  }
+  function topluTablo(d) {
+    const sadece = $("#topluSadeceUyari").checked;
+    const satirlar = (d.sonuclar || []).filter((s) => !sadece || s.seviye === "supheli" || s.seviye === "tehlikeli").slice(0, 500);
+    $("#topluTablo").innerHTML = satirlar.length ? satirlar.map((s) => `<tr>
+      <td><span class="etiket ${esc(s.seviye)}">${esc(SEVIYE[s.seviye] || s.seviye)}</span></td>
+      <td class="sayi">${Number(s.puan) || 0}</td>
+      <td>${esc(TUR[s.tur] || s.tur)}</td>
+      <td style="min-width:180px;max-width:320px;word-break:break-all">${esc(s.hedef)}</td>
+      <td class="kucuk">${s.nedenler.map(esc).join("<br>")}</td></tr>`).join("")
+      : `<tr><td colspan="5" class="bos">${d.durum === "calisiyor" ? "Taranıyor…" : "Uyarı alan öğe yok"}</td></tr>`;
+  }
+
+  // ---------- Rapor ----------
+  const ipucu = $("#ipucuKutu");
+  function ipucuGoster(e, html) {
+    ipucu.innerHTML = html; ipucu.classList.remove("gizli");
+    const x = Math.min(e.clientX + 14, window.innerWidth - ipucu.offsetWidth - 8);
+    const y = Math.max(8, e.clientY - ipucu.offsetHeight - 10);
+    ipucu.style.left = x + "px"; ipucu.style.top = y + "px";
+  }
+  const ipucuGizle = () => ipucu.classList.add("gizli");
+
+  function gunlukGrafik(gunler) {
+    const W = 760, H = 220, sol = 34, alt = 24, ust = 8;
+    const maks = Math.max(1, ...gunler.map((g) => g.supheli + g.tehlikeli));
+    const adim = niceStep(maks);
+    const tavan = Math.ceil(maks / adim) * adim;
+    const y = (v) => ust + (H - ust - alt) * (1 - v / tavan);
+    const genislik = (W - sol) / gunler.length;
+    const cw = Math.max(2, Math.min(28, genislik * 0.62));
+    let svg = `<svg class="grafik" viewBox="0 0 ${W} ${H}" role="img" aria-label="Günlük uyarı sayıları">`;
+    for (let v = 0; v <= tavan; v += adim) {
+      svg += `<line x1="${sol}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--viz-grid)" stroke-width="1"/>`;
+      svg += `<text x="${sol - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+    }
+    const etiketAdim = Math.ceil(gunler.length / 8);
+    gunler.forEach((g, i) => {
+      const x = sol + i * genislik + (genislik - cw) / 2;
+      const yt = y(g.tehlikeli), ys = y(g.tehlikeli + g.supheli);
+      // Tehlikeli altta (taban çizgisine bağlı), şüpheli üstte; aralarında 2px yüzey boşluğu
+      if (g.tehlikeli) svg += `<path d="${cubukYol(x, yt, cw, y(0) - yt, !g.supheli)}" fill="var(--st-critical)"/>`;
+      if (g.supheli) {
+        const taban = g.tehlikeli ? yt - 2 : y(0);
+        svg += `<path d="${cubukYol(x, ys, cw, Math.max(1, taban - ys), true)}" fill="var(--st-warning)"/>`;
+      }
+      if ((gunler.length - 1 - i) % etiketAdim === 0) { // bugünden geriye eşit aralık: son gün hep etiketli, çakışma yok
+        svg += `<text x="${x + cw / 2}" y="${H - 6}" text-anchor="middle">${g.gun.slice(8, 10)}.${g.gun.slice(5, 7)}</text>`;
+      }
+      // Görünmez, işaretten geniş isabet alanı
+      svg += `<rect x="${sol + i * genislik}" y="${ust}" width="${genislik}" height="${H - ust - alt}" fill="transparent" data-i="${i}"/>`;
+    });
+    svg += `<line x1="${sol}" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="var(--viz-axis)" stroke-width="1"/></svg>`;
+    const kap = $("#gunlukGrafik");
+    kap.innerHTML = svg;
+    kap.querySelectorAll("rect[data-i]").forEach((r) => {
+      r.addEventListener("mousemove", (e) => {
+        const g = gunler[+r.dataset.i];
+        ipucuGoster(e, `<b>${esc(new Date(g.gun).toLocaleDateString("tr-TR", { day: "numeric", month: "long" }))}</b><br>
+          ⛔ Tehlikeli: ${g.tehlikeli}<br>⚠️ Şüpheli: ${g.supheli}<br><span style="color:var(--muted)">Güvenli: ${sayi(g.guvenli)}</span>`);
+      });
+      r.addEventListener("mouseleave", ipucuGizle);
+    });
+  }
+  function niceStep(maks) {
+    const ham = maks / 4, us = Math.pow(10, Math.floor(Math.log10(ham || 1)));
+    for (const k of [1, 2, 5, 10]) if (k * us >= ham) return Math.max(1, k * us);
+    return Math.max(1, 10 * us);
+  }
+  // Yalnızca üst köşeleri 4px yuvarlatılmış çubuk (veri ucu yuvarlak, taban düz)
+  function cubukYol(x, y, w, h, ustYuvarlak) {
+    const r = ustYuvarlak ? Math.min(4, w / 2, h) : 0;
+    return `M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${y + h} Z`;
+  }
+
+  function cubukListe(kap, veri, adlar) {
+    const girdiler = Object.entries(veri || {});
+    if (!girdiler.length) { kap.innerHTML = `<div class="bos">Bu dönemde veri yok</div>`; return; }
+    const maks = Math.max(...girdiler.map(([, v]) => v));
+    const toplam = girdiler.reduce((t, [, v]) => t + v, 0);
+    kap.innerHTML = `<div class="cubuk-liste">${girdiler.map(([k, v]) => `
+      <div class="cubuk-satir" data-ad="${esc((adlar && adlar[k]) || k)}" data-v="${v}">
+        <div class="ad" title="${esc((adlar && adlar[k]) || k)}">${esc((adlar && adlar[k]) || k)}</div>
+        <div class="iz"><div style="width:${(v / maks * 100).toFixed(1)}%"></div></div>
+        <div class="deger">${sayi(v)}</div>
+      </div>`).join("")}</div>`;
+    kap.querySelectorAll(".cubuk-satir").forEach((s) => {
+      s.addEventListener("mousemove", (e) => ipucuGoster(e, `<b>${esc(s.dataset.ad)}</b><br>${sayi(s.dataset.v)} uyarı · %${(s.dataset.v / toplam * 100).toFixed(1)}`));
+      s.addEventListener("mouseleave", ipucuGizle);
+    });
+  }
+
+  async function raporYukle() {
+    const gun = $("#raporGun").value;
+    try {
+      const r = await api(`/api/rapor?gun=${gun}`);
+      const t = r.gunluk.reduce((a, g) => ({ g: a.g + g.guvenli, s: a.s + g.supheli, t: a.t + g.tehlikeli }), { g: 0, s: 0, t: 0 });
+      $("#raporIstat").innerHTML = `
+        <div><b>${sayi(t.g + t.s + t.t)}</b><span>Toplam tarama</span></div>
+        <div><b>${sayi(t.s + t.t)}</b><span>Uyarı</span></div>
+        <div><b style="color:var(--bad)">${sayi(t.t)}</b><span>⛔ Tehlikeli</span></div>
+        <div><b style="color:var(--warn)">${sayi(t.s)}</b><span>⚠️ Şüpheli</span></div>`;
+      gunlukGrafik(r.gunluk);
+      cubukListe($("#grafikKategori"), r.kategori, KATEGORI);
+      cubukListe($("#grafikMarka"), r.markalar);
+      cubukListe($("#grafikKaynak"), r.kaynak, KAYNAK);
+      cubukListe($("#grafikSinyal"), r.sinyaller);
+    } catch (e) {
+      $("#raporIstat").innerHTML = `<div class="bos">Rapor alınamadı: ${esc(e.message)}</div>`;
+    }
+  }
+  $("#raporGun").onchange = raporYukle;
+  $("#raporCsv").onclick = () => indir(`/api/disa-aktar.csv?gun=${$("#raporGun").value}`, `kalkan_rapor_${$("#raporGun").value}gun.csv`);
+  $("#raporYazdir").onclick = () => window.print();
+
+  // ---------- Doğruluk ----------
+  let dogrulukYuklendi = false;
+  async function dogrulukYukle() {
+    if (dogrulukYuklendi) return;
+    try {
+      const d = await api("/api/dogruluk");
+      dogrulukYuklendi = true;
+      $("#dogrulukUst").textContent = `${d.tarih} tarihinde, modellerin eğitimde görmediği ${sayi(d.ornek_sayisi)} gerçek örnekle ölçüldü. Ortalama tarama süresi ${String(d.ortalama_ms).replace(".", ",")} ms.`;
+      const MOD = { kural: "Yalnız kurallar", ml: "Yalnız ML modeli", hibrit: "Kalkan (gerçek karar)" };
+      let h = `<thead><tr><th>Kanal</th><th>Yöntem</th><th class="sayi">Tespit oranı</th><th class="sayi">Yanlış alarm</th><th class="sayi">Kesinlik</th><th class="sayi">F1</th></tr></thead><tbody>`;
+      for (const k of ["eposta", "sms", "url"]) {
+        const m = d.metrikler[k]; if (!m) continue;
+        ["kural", "ml", "hibrit"].forEach((mod, i) => {
+          const x = m[mod]; if (!x) return;
+          const vurgu = mod === "hibrit" ? ' style="font-weight:700"' : "";
+          h += `<tr${vurgu}><td>${i === 0 ? esc(KANAL[k]) : ""}</td><td>${MOD[mod]}</td><td class="sayi">${yuzde(x.tespit_orani)}</td><td class="sayi">${yuzde(x.yanlis_alarm)}</td><td class="sayi">${yuzde(x.kesinlik)}</td><td class="sayi">${yuzde(x.f1)}</td></tr>`;
+        });
+      }
+      $("#dogrulukKanal").innerHTML = h + "</tbody>";
+      let h2 = `<thead><tr><th>Veri seti</th><th class="sayi">Tehdit örneği</th><th class="sayi">Temiz örnek</th><th class="sayi">Tespit oranı</th><th class="sayi">Yanlış alarm</th></tr></thead><tbody>`;
+      for (const [g, m] of Object.entries(d.metrikler)) {
+        if (!g.includes(":")) continue;
+        const x = m.hibrit, kay = g.split(":")[1];
+        h2 += `<tr><td>${esc(KAYNAK_VERI[kay] || kay)}</td><td class="sayi">${sayi(x.tp + x.fn)}</td><td class="sayi">${sayi(x.tn + x.fp)}</td><td class="sayi">${yuzde(x.tespit_orani)}</td><td class="sayi">${x.tn + x.fp ? yuzde(x.yanlis_alarm) : "—"}</td></tr>`;
+      }
+      $("#dogrulukKaynak").innerHTML = h2 + "</tbody>";
+    } catch (e) {
+      $("#dogrulukUst").textContent = "Değerlendirme sonucu bulunamadı: " + e.message;
+    }
+  }
+
+  // ---------- Başlangıç ----------
   async function durumYukle() {
     const d = await api("/api/durum");
-    if (d.token_gerekli && !token) tokenSor();
-    const c = (ad, acik, ipucu) => `<span class="chip ${acik ? "acik" : ""}" title="${esc(ipucu)}">${acik ? "●" : "○"} ${esc(ad)}</span>`;
+    // Panel dosyası her istekte diskten okunur, Python kodu ise sunucu açılırken yüklenir. Kod güncellenip
+    // sunucu yeniden başlatılmazsa yeni bölümler "Not Found" alır; bunu sessiz bırakmadan söyleriz.
+    if (d.surum !== PANEL_SURUM) {
+      const u = $("#surumUyari");
+      u.textContent = `Kalkan sunucusu eski bir sürümle çalışıyor (sunucu: ${d.surum || "bilinmiyor"}, panel: ${PANEL_SURUM}). ` +
+        "Bazı bölümler çalışmayacak. Sunucuyu çalıştırdığınız terminalde Ctrl+C ile durdurup yeniden başlatın.";
+      u.classList.remove("gizli");
+    }
+    const c = (ad, acik, ip) => `<span class="chip ${acik ? "acik" : ""}" title="${esc(ip)}">${acik ? "●" : "○"} ${esc(ad)}</span>`;
     $("#durum").innerHTML = [
       c("Kural + ML", true, "Her zaman açık"),
       c("Yapay zekâ yorumu", d.llm, "KALKAN_LLM=1 ile açılır"),
       c("VirusTotal", d.virustotal, "VIRUSTOTAL_API_KEY"),
-      c("Webhook", d.webhook, "KALKAN_WEBHOOK_URL"),
+      c("OCR", d.ocr, "Tesseract kuruluysa ekran görüntüsündeki yazı okunur"),
       c("Klasör izleme", !!d.klasor_izleme, d.klasor_izleme || "KALKAN_WATCH_DIR"),
       c("Posta izleme", d.imap_izleme, "KALKAN_IMAP_*"),
     ].join("");
+    if (!d.ocr) $("#gorselIpucu").textContent += " Ekran görüntüsündeki yazıyı okumak için Tesseract kurulmalı (şu an yalnızca QR okunuyor).";
     return d;
   }
 
   async function baslat() {
     try {
       const d = await durumYukle();
-      if (d.token_gerekli && !token) return;
       kayitlar = await api("/api/gecmis?limit=200");
       akisCiz(); istatistikYukle(); akisBaglan();
+      const h = location.hash.slice(1);
+      if (["bilgisayar", "uygulamalar", "toplu", "rapor", "dogruluk"].includes(h)) gorunumAc(h);
     } catch (e) { $("#bilgi").textContent = "Sunucuya bağlanılamadı: " + e.message; }
   }
   baslat();
